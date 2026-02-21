@@ -17,17 +17,27 @@ async function loadMangaDetails() {
         const infoData = await infoResponse.json();
         const manga = infoData.data;
 
+        // Fetch up to 500 English chapters
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         let chapters = [];
         if (feedResponse.ok) {
             const feedData = await feedResponse.json();
-            chapters = feedData.data;
+            
+            // FILTER: Remove external link chapters and deduplicate by chapter number
+            const seen = new Set();
+            chapters = feedData.data.filter(c => {
+                const isExternal = c.attributes.externalUrl !== null;
+                const chapNum = c.attributes.chapter;
+                if (isExternal) return false;
+                if (chapNum && seen.has(chapNum)) return false;
+                if (chapNum) seen.add(chapNum);
+                return true;
+            });
         }
 
         renderDetails(manga, chapters);
     } catch (error) {
-        console.error("Details Error:", error);
-        detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">Network Error. Could not load details.</div>`;
+        detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">Network Error.</div>`;
     }
 }
 
@@ -62,13 +72,13 @@ function renderDetails(manga, chapters) {
 
     let chaptersHTML = '';
     if (chapters.length === 0) {
-        chaptersHTML = `<div class="loading-state">No English chapters available yet.</div>`;
+        chaptersHTML = `<div class="loading-state">No readable English chapters found on this source.</div>`;
     } else {
         chaptersHTML = chapters.map(chapter => {
             const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
             const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
             return `
-                <div class="chapter-card" onclick="window.location.href='reader.html?chapterId=${chapter.id}'">
+                <div class="chapter-card" onclick="window.location.href='reader.html?id=${mangaId}&chapterId=${chapter.id}'">
                     <div>
                         <div class="chapter-number">${chapNum}</div>
                         <div class="chapter-title">${chapTitle}</div>
