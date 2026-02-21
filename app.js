@@ -1,28 +1,22 @@
-// Configuration - Routing through Vercel Proxy to bypass network blocks
+// Configuration - Using Vercel Proxy
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
 
-// DOM Elements
-const mangaGrid = document.getElementById('mangaGrid');
-
-// Fetch Trending/Recent Manga
-async function fetchDiscoverManga() {
+// Flexible function to fetch specific categories
+async function fetchCarouselData(containerId, queryParams) {
+    const container = document.getElementById(containerId);
     try {
-        // Fetching using our new Vercel proxy route
-        const url = `${API_BASE}/manga?limit=12&contentRating[]=safe&includes[]=cover_art&order[followedCount]=desc`;
+        // Fetch 15 items per carousel for a good swipe experience
+        const url = `${API_BASE}/manga?limit=15&contentRating[]=safe&includes[]=cover_art&${queryParams}`;
         const response = await fetch(url);
         
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.errors?.[0]?.detail || `HTTP Error ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         
         const data = await response.json();
-        renderMangaCards(data.data);
+        renderMangaCards(data.data, container);
     } catch (error) {
         console.error('Nova Error:', error);
-        // Printing the EXACT error to the UI so you can debug without a console
-        mangaGrid.innerHTML = `<div class="loading-state" style="color: #ef4444; font-weight: bold;">API Error: ${error.message}</div>`;
+        container.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load.</div>`;
     }
 }
 
@@ -43,17 +37,15 @@ function getCoverUrl(mangaId, relationships) {
         const fileName = coverRel.attributes.fileName;
         return `${UPLOADS_BASE}/covers/${mangaId}/${fileName}.256.jpg`;
     }
-    
-    // Fallback SVG if no cover is found
-    return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMxMjEyMTIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZmlsbD0iI2ExYTFhYSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPk5vIENvdmVyPC90ZXh0Pjwvc3ZnPg==';
+    return ''; // Blank fallback handled by CSS
 }
 
-// Render the grid with bulletproof null-checks
-function renderMangaCards(mangaList) {
-    mangaGrid.innerHTML = ''; // Clear loading state
+// Render the cards into a specific container
+function renderMangaCards(mangaList, container) {
+    container.innerHTML = ''; // Clear loading state
 
     if (!mangaList || mangaList.length === 0) {
-        mangaGrid.innerHTML = `<div class="loading-state">No manga found.</div>`;
+        container.innerHTML = `<div class="loading-state">No items found.</div>`;
         return;
     }
 
@@ -62,45 +54,42 @@ function renderMangaCards(mangaList) {
             const title = getTitle(manga.attributes);
             const coverUrl = getCoverUrl(manga.id, manga.relationships);
             
-            // Bulletproof status check
-            const rawStatus = manga.attributes?.status || 'ongoing';
-            const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
-            
-            // Bulletproof tags check
-            let tags = status;
+            // Extract top genre
+            let genre = 'Ongoing';
             if (manga.attributes?.tags) {
-                const genreTags = manga.attributes.tags
-                    .filter(tag => tag.attributes?.group === 'genre')
-                    .slice(0, 2)
-                    .map(tag => tag.attributes?.name?.en)
-                    .filter(Boolean); // removes any undefined elements
-                
-                if (genreTags.length > 0) {
-                    tags = genreTags.join(' • ');
+                const genreTag = manga.attributes.tags.find(tag => tag.attributes?.group === 'genre');
+                if (genreTag && genreTag.attributes?.name?.en) {
+                    genre = genreTag.attributes.name.en;
                 }
             }
 
-            // Create DOM Elements
             const card = document.createElement('div');
             card.className = 'manga-card';
             
-            // ADDED referrerpolicy="no-referrer" TO THE IMG TAG TO BYPASS HOTLINK PROTECTION
+            // Note the referrerpolicy="no-referrer" to defeat hotlink protection
             card.innerHTML = `
                 <div class="cover-wrapper">
-                    <img src="${coverUrl}" alt="${title} cover" loading="lazy" referrerpolicy="no-referrer">
+                    <img src="${coverUrl}" alt="${title}" loading="lazy" referrerpolicy="no-referrer">
                 </div>
                 <h3 class="manga-title" title="${title}">${title}</h3>
-                <p class="manga-tags">${tags}</p>
+                <p class="manga-tags">${genre}</p>
             `;
 
-            mangaGrid.appendChild(card);
+            container.appendChild(card);
         } catch (err) {
-            // Silently skip corrupted manga entries so the rest of the grid still loads
+            // Silently skip corrupted data
         }
     });
 }
 
-// Initialize Application
+// Initialize the Netflix-style rows
 document.addEventListener('DOMContentLoaded', () => {
-    fetchDiscoverManga();
+    // 1. Trending Manga (Japanese, ordered by follows)
+    fetchCarouselData('trendingManga', 'originalLanguage[]=ja&order[followedCount]=desc');
+    
+    // 2. Must-Read Manhwa (Korean, ordered by rating for highest quality)
+    fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc');
+    
+    // 3. Popular Manhua (Chinese, ordered by follows)
+    fetchCarouselData('trendingManhua', 'originalLanguage[]=zh&order[followedCount]=desc');
 });
