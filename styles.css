@@ -183,3 +183,66 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
     .details-title { text-align: center; }
     .details-author { text-align: center; }
 }
+/* =========================================
+   PHASE 4: CHAPTER READER 
+========================================= */
+.reader-body {
+    background-color: #000000; /* Pure black for immersive reading */
+}
+
+.reader-nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.reader-back-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.3s ease;
+}
+
+.reader-back-btn:hover {
+    color: var(--accent);
+}
+
+.reader-chapter-title {
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+/* Webtoon-Style Vertical Layout Constraints */
+.reader-container {
+    max-width: 800px; /* Keeps panels from looking stretched on large monitors */
+    margin: 4rem auto 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.reader-page {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0;
+    padding: 0;
+    /* This ensures absolutely 0px gap between stacked images */
+    vertical-align: top; 
+}
