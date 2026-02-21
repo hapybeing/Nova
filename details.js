@@ -1,10 +1,22 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-const COMICK_BASE = '/proxy/comick'; // Our new Shadow API
+const COMICK_BASE = '/proxy/comick'; 
 const detailsMain = document.getElementById('detailsMain');
 
 const urlParams = new URLSearchParams(window.location.search);
 const mangaId = urlParams.get('id');
+
+// --- THE FIX: Aggressive English Extraction for Details/ComicK ---
+function getTitle(attributes) {
+    if (attributes.title && attributes.title.en) return attributes.title.en;
+    if (attributes.altTitles && attributes.altTitles.length > 0) {
+        const enTitleObj = attributes.altTitles.find(t => t.en);
+        if (enTitleObj) return enTitleObj.en;
+    }
+    if (attributes.title) return attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title';
+    return 'Unknown Title';
+}
+// -----------------------------------------------------------------
 
 async function loadMangaDetails() {
     if (!mangaId) {
@@ -13,13 +25,11 @@ async function loadMangaDetails() {
     }
 
     try {
-        // 1. Fetch Manga Metadata from MangaDex (Always best for UI)
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         if (!infoResponse.ok) throw new Error('Failed to load manga data');
         const infoData = await infoResponse.json();
         const manga = infoData.data;
 
-        // 2. Try fetching Chapters from MangaDex
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         let chapters = [];
         let source = 'mangadex';
@@ -38,20 +48,19 @@ async function loadMangaDetails() {
             });
         }
 
-        // 3. THE SHADOW API FALLBACK: If MangaDex is empty, query ComicK
+        // THE SHADOW API FALLBACK
         if (chapters.length === 0) {
-            console.log("MangaDex chapters empty. Engaging ComicK fallback...");
-            const title = getTitle(manga.attributes);
+            // Because of our fix, this is now guaranteed to be the English title!
+            const englishTitle = getTitle(manga.attributes);
+            console.log("Searching Aggregator for:", englishTitle);
             
             try {
-                // Search ComicK by Title
-                const searchRes = await fetch(`${COMICK_BASE}/v1.0/search?q=${encodeURIComponent(title)}&limit=1`);
+                const searchRes = await fetch(`${COMICK_BASE}/v1.0/search?q=${encodeURIComponent(englishTitle)}&limit=1`);
                 const searchData = await searchRes.json();
                 
                 if (searchData && searchData.length > 0) {
-                    comicHid = searchData[0].hid; // ComicK's unique ID
+                    comicHid = searchData[0].hid; 
                     
-                    // Fetch Chapters from ComicK
                     const chapRes = await fetch(`${COMICK_BASE}/comic/${comicHid}/chapters?lang=en&limit=500`);
                     const chapData = await chapRes.json();
                     
@@ -63,7 +72,7 @@ async function loadMangaDetails() {
                             seen.add(c.chap);
                             return true;
                         }).map(c => ({
-                            id: c.hid, // ComicK chapter ID
+                            id: c.hid,
                             attributes: { chapter: c.chap, title: c.title }
                         }));
                         source = 'comick';
@@ -78,11 +87,6 @@ async function loadMangaDetails() {
     } catch (error) {
         detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">Network Error.</div>`;
     }
-}
-
-function getTitle(attributes) {
-    if (attributes.title.en) return attributes.title.en;
-    return attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title';
 }
 
 function getDescription(attributes) {
@@ -109,13 +113,17 @@ function renderDetails(manga, chapters, source, comicHid) {
 
     let chaptersHTML = '';
     if (chapters.length === 0) {
-        chaptersHTML = `<div class="loading-state">No readable English chapters found across any source.</div>`;
+        chaptersHTML = `
+            <div class="loading-state" style="text-align: left; padding: 2rem; background: var(--bg-surface); border-radius: 12px;">
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">Chapters Unavailable</h3>
+                <p style="color: var(--text-secondary);">This title is heavily licensed. Our aggregators are waiting for scanlation updates.</p>
+            </div>
+        `;
     } else {
         chaptersHTML = chapters.map(chapter => {
             const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
             const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
             
-            // Build the Reader URL to include the Source and ID
             const comicParam = source === 'comick' ? `&comicHid=${comicHid}` : '';
             const readerUrl = `reader.html?id=${mangaId}&chapterId=${chapter.id}&source=${source}${comicParam}`;
             
@@ -131,8 +139,7 @@ function renderDetails(manga, chapters, source, comicHid) {
         }).join('');
     }
 
-    // Add a small badge so you know if it's using the fallback
-    const sourceBadge = source === 'comick' ? `<span style="font-size: 0.8rem; background: var(--accent); padding: 0.2rem 0.5rem; border-radius: 4px; margin-left: 1rem;">Aggregator Mode</span>` : '';
+    const sourceBadge = source === 'comick' ? `<span style="font-size: 0.8rem; background: var(--accent); padding: 0.2rem 0.6rem; border-radius: 6px; margin-left: 1rem; vertical-align: middle;">Aggregator Mode</span>` : '';
 
     detailsMain.innerHTML = `
         <div class="details-container">
