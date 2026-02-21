@@ -83,9 +83,11 @@ function renderMangaCards(mangaList) {
             // Create DOM Elements
             const card = document.createElement('div');
             card.className = 'manga-card';
+            
+            // ADDED referrerpolicy="no-referrer" TO THE IMG TAG TO BYPASS HOTLINK PROTECTION
             card.innerHTML = `
                 <div class="cover-wrapper">
-                    <img src="${coverUrl}" alt="${title} cover" loading="lazy">
+                    <img src="${coverUrl}" alt="${title} cover" loading="lazy" referrerpolicy="no-referrer">
                 </div>
                 <h3 class="manga-title" title="${title}">${title}</h3>
                 <p class="manga-tags">${tags}</p>
