@@ -18,6 +18,9 @@ body {
     overflow-x: hidden;
 }
 
+/* Utilities */
+.hidden { display: none !important; }
+
 /* Glass Navigation */
 .glass-nav {
     position: fixed;
@@ -56,32 +59,44 @@ body {
 }
 .search-container input:focus { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 
-/* Netflix-Style Discovery Rows */
+/* Main Content */
 .discover-section { max-width: 1400px; margin: 0 auto; padding: 0 0 4rem 0; }
 .carousel-section { margin-bottom: 3rem; }
+#searchResultsSection { margin-bottom: 4rem; }
+
 .section-header { display: flex; justify-content: space-between; align-items: center; padding: 0 2rem; margin-bottom: 1.5rem; }
 .section-header h2 { font-size: 1.5rem; font-weight: 700; }
 .view-all { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; transition: color 0.3s ease; }
 .view-all:hover { color: var(--text-primary); }
+
+/* Search Results Grid */
+.manga-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1.5rem;
+    padding: 0 2rem;
+}
 
 /* The Swipe Logic */
 .carousel-container {
     display: flex; gap: 1.5rem; padding: 0 2rem 1.5rem 2rem;
     overflow-x: auto; scroll-snap-type: x mandatory;
     scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
-    /* Hide scrollbars for absolute native feel */
     scrollbar-width: none; -ms-overflow-style: none;
 }
 .carousel-container::-webkit-scrollbar { display: none; }
 
 /* Cards */
 .manga-card {
-    flex: 0 0 180px; /* Fixed width for horizontal scrolling */
+    flex: 0 0 180px; 
     scroll-snap-align: start; cursor: pointer;
     will-change: transform; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+/* Override flex for cards inside the search grid */
+.manga-grid .manga-card { flex: none; width: 100%; }
+
 @media (max-width: 768px) {
-    .manga-card { flex: 0 0 140px; } /* Smaller cards on phones/tablets */
+    .manga-card { flex: 0 0 140px; } 
     .section-header h2 { font-size: 1.2rem; }
 }
 .manga-card:hover { transform: translateY(-8px); }
@@ -96,6 +111,6 @@ body {
 
 .manga-title { font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.2rem; }
 .manga-tags { font-size: 0.75rem; color: var(--text-secondary); }
-.loading-state { width: 100%; text-align: center; padding: 2rem; color: var(--text-secondary); animation: pulse 2s infinite; }
+.loading-state { grid-column: 1 / -1; width: 100%; text-align: center; padding: 2rem; color: var(--text-secondary); animation: pulse 2s infinite; }
 
 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
