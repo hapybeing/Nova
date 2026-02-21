@@ -74,3 +74,112 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .manga-tags { font-size: 0.75rem; color: var(--text-secondary); }
 .loading-state { grid-column: 1 / -1; width: 100%; text-align: center; padding: 2rem; color: var(--text-secondary); animation: pulse 2s infinite; }
 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+/* =========================================
+   PHASE 3: DETAILS & CHAPTERS PAGE 
+========================================= */
+.details-container {
+    max-width: 1200px;
+    margin: 8rem auto 3rem;
+    padding: 0 2rem;
+    display: flex;
+    gap: 3rem;
+}
+
+.details-cover { flex: 0 0 280px; }
+.details-cover img {
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+}
+
+.details-info { flex: 1; }
+.details-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.details-author {
+    color: var(--accent);
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 2rem;
+}
+
+.details-synopsis {
+    color: var(--text-secondary);
+    line-height: 1.7;
+    font-size: 1.05rem;
+    max-width: 800px;
+    /* Clean up markdown links that APIs sometimes return */
+    white-space: pre-wrap; 
+}
+
+/* Chapters Layout */
+.chapters-section {
+    max-width: 1200px;
+    margin: 0 auto 6rem;
+    padding: 0 2rem;
+}
+
+.chapters-header {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.chapters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.chapter-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--glass-border);
+    padding: 1.2rem 1.5rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chapter-card:hover {
+    border-color: var(--accent);
+    background: rgba(109, 40, 217, 0.05);
+    transform: translateY(-3px);
+}
+
+.chapter-number {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+}
+
+.chapter-title {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+
+/* Tablet / Mobile adjustments */
+@media (max-width: 768px) {
+    .details-container {
+        flex-direction: column;
+        margin-top: 6rem;
+        gap: 2rem;
+    }
+    .details-cover { flex: 0 0 auto; max-width: 200px; margin: 0 auto; }
+    .details-title { text-align: center; }
+    .details-author { text-align: center; }
+}
