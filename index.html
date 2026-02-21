@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nova | Premium Manga & Manhwa</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="app.js" defer></script>
+</head>
+<body>
+    <nav class="glass-nav">
+        <div class="nav-content">
+            <div class="logo">NOVA</div>
+            <div class="nav-links">
+                <a href="#" class="active">Discover</a>
+                <a href="#">Library</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="glow-orb"></div>
+        <div class="hero-content">
+            <h1 class="hero-title">Beyond the <span class="accent-text">Panels</span></h1>
+            <p class="hero-subtitle">Immerse yourself in the world's best manga and manhwa, beautifully presented.</p>
+            
+            <div class="search-container">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="Search for titles, authors, or genres..." autocomplete="off">
+            </div>
+        </div>
+    </header>
+
+    <main class="discover-section">
+        <div class="section-header">
+            <h2>Trending Now</h2>
+            <button class="view-all">View All <i class="ph ph-caret-right"></i></button>
+        </div>
+        
+        <div class="manga-grid" id="mangaGrid">
+            <div class="loading-state">Syncing with MangaDex...</div>
+        </div>
+    </main>
+</body>
+</html>
