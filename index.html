@@ -28,7 +28,7 @@
         <div class="glow-orb"></div>
         <div class="hero-content">
             <h1 class="hero-title">Beyond the <span class="accent-text">Panels</span></h1>
-            <p class="hero-subtitle">Immerse yourself in the world's best manga and manhwa, beautifully presented.</p>
+            <p class="hero-subtitle">Immerse yourself in the world's best manga, manhwa, and manhua.</p>
             
             <div class="search-container">
                 <i class="ph ph-magnifying-glass"></i>
@@ -38,14 +38,37 @@
     </header>
 
     <main class="discover-section">
-        <div class="section-header">
-            <h2>Trending Now</h2>
-            <button class="view-all">View All <i class="ph ph-caret-right"></i></button>
-        </div>
         
-        <div class="manga-grid" id="mangaGrid">
-            <div class="loading-state">Syncing with MangaDex...</div>
-        </div>
+        <section class="carousel-section">
+            <div class="section-header">
+                <h2>Trending Manga</h2>
+                <button class="view-all">View All <i class="ph ph-caret-right"></i></button>
+            </div>
+            <div class="carousel-container" id="trendingManga">
+                <div class="loading-state">Syncing with network...</div>
+            </div>
+        </section>
+
+        <section class="carousel-section">
+            <div class="section-header">
+                <h2>Must-Read Manhwa</h2>
+                <button class="view-all">View All <i class="ph ph-caret-right"></i></button>
+            </div>
+            <div class="carousel-container" id="trendingManhwa">
+                <div class="loading-state">Syncing with network...</div>
+            </div>
+        </section>
+
+        <section class="carousel-section">
+            <div class="section-header">
+                <h2>Popular Manhua</h2>
+                <button class="view-all">View All <i class="ph ph-caret-right"></i></button>
+            </div>
+            <div class="carousel-container" id="trendingManhua">
+                <div class="loading-state">Syncing with network...</div>
+            </div>
+        </section>
+
     </main>
 </body>
 </html>
