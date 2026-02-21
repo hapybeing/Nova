@@ -17,7 +17,7 @@
     
     <nav class="reader-nav">
         <button id="backBtn" class="reader-back-btn">
-            <i class="ph ph-arrow-left"></i> Back to Details
+            <i class="ph ph-arrow-left"></i> Back
         </button>
         <div id="readerChapterTitle" class="reader-chapter-title">Loading...</div>
     </nav>
@@ -25,6 +25,17 @@
     <main id="readerContainer" class="reader-container">
         <div class="loading-state" style="margin-top: 10rem;">Connecting to Image Servers...</div>
     </main>
+
+    <nav class="reader-controls" id="readerControls" style="display: none;">
+        <button id="prevBtn" class="control-btn" disabled><i class="ph ph-caret-left"></i> Prev</button>
+        
+        <div class="select-wrapper">
+            <select id="chapterSelect" class="chapter-dropdown"></select>
+            <i class="ph ph-caret-down select-icon"></i>
+        </div>
+
+        <button id="nextBtn" class="control-btn" disabled>Next <i class="ph ph-caret-right"></i></button>
+    </nav>
 
 </body>
 </html>
