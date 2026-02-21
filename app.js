@@ -12,13 +12,11 @@ const clearSearchBtn = document.getElementById('clearSearchBtn');
 const carousels = document.querySelectorAll('.carousel-section');
 const navDiscover = document.getElementById('navDiscover');
 
-let searchTimeout; // Used for Debouncing
+let searchTimeout; 
 
 // LIVE SEARCH AUTOCOMPLETE
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
-    
-    // Clear previous timeout so we don't spam the API
     clearTimeout(searchTimeout);
     
     if (!query) {
@@ -26,18 +24,14 @@ searchInput.addEventListener('input', (e) => {
         return;
     }
 
-    // Show loading state in dropdown
     searchDropdown.classList.remove('hidden');
     searchDropdown.innerHTML = '<div class="dropdown-msg">Searching...</div>';
 
-    // Wait 500ms after user stops typing to fetch
     searchTimeout = setTimeout(async () => {
         try {
-            // Fetch top 5 results for the dropdown
             const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=5&contentRating[]=safe&includes[]=cover_art&order[relevance]=desc`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('Search failed');
-            
             const data = await response.json();
             renderLiveSearchDropdown(data.data);
         } catch (error) {
@@ -46,10 +40,8 @@ searchInput.addEventListener('input', (e) => {
     }, 500);
 });
 
-// Render the small dropdown list
 function renderLiveSearchDropdown(mangaList) {
     searchDropdown.innerHTML = '';
-    
     if (!mangaList || mangaList.length === 0) {
         searchDropdown.innerHTML = '<div class="dropdown-msg">No titles found</div>';
         return;
@@ -64,7 +56,6 @@ function renderLiveSearchDropdown(mangaList) {
         const item = document.createElement('div');
         item.className = 'dropdown-item';
         
-        // Notice we include referrerpolicy="no-referrer" here too!
         item.innerHTML = `
             <img src="${coverUrl}" alt="${title}" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
             <div class="dropdown-info">
@@ -73,11 +64,9 @@ function renderLiveSearchDropdown(mangaList) {
             </div>
         `;
         
-        // When a user taps a dropdown item, run the full search for it
+        // NEW: Route directly to the details page on click
         item.addEventListener('click', () => {
-            searchInput.value = title;
-            searchDropdown.classList.add('hidden');
-            executeFullSearch(title);
+            window.location.href = `details.html?id=${manga.id}`;
         });
 
         searchDropdown.appendChild(item);
@@ -90,13 +79,12 @@ async function executeFullSearch(query) {
     searchResultsSection.classList.remove('hidden');
     searchHeading.innerText = `Results for "${query}"`;
     searchResultsGrid.innerHTML = '<div class="loading-state">Searching database...</div>';
-    searchInput.blur(); // Hide tablet keyboard
+    searchInput.blur(); 
 
     try {
         const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&contentRating[]=safe&includes[]=cover_art&order[relevance]=desc`;
         const response = await fetch(url);
         if (!response.ok) throw new Error('Search failed');
-        
         const data = await response.json();
         renderMangaCards(data.data, searchResultsGrid);
     } catch (error) {
@@ -104,7 +92,6 @@ async function executeFullSearch(query) {
     }
 }
 
-// Listen for the "Enter" key
 searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
@@ -115,14 +102,12 @@ searchInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Hide dropdown if tapping anywhere else on the screen
 document.addEventListener('click', (e) => {
     if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
         searchDropdown.classList.add('hidden');
     }
 });
 
-// CLEAR SEARCH
 function resetSearch() {
     searchInput.value = '';
     searchDropdown.classList.add('hidden');
@@ -133,7 +118,6 @@ function resetSearch() {
 clearSearchBtn.addEventListener('click', resetSearch);
 navDiscover.addEventListener('click', (e) => { e.preventDefault(); resetSearch(); });
 
-// Flexible function to fetch specific categories
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
     try {
@@ -148,7 +132,6 @@ async function fetchCarouselData(containerId, queryParams) {
     }
 }
 
-// Helper functions (Title & Cover)
 function getTitle(attributes) {
     if (!attributes || !attributes.title) return 'Unknown Title';
     if (attributes.title.en) return attributes.title.en;
@@ -160,13 +143,11 @@ function getCoverUrl(mangaId, relationships) {
     if (!relationships) return ''; 
     const coverRel = relationships.find(rel => rel.type === 'cover_art');
     if (coverRel && coverRel.attributes && coverRel.attributes.fileName) {
-        const fileName = coverRel.attributes.fileName;
-        return `${UPLOADS_BASE}/covers/${mangaId}/${fileName}.256.jpg`;
+        return `${UPLOADS_BASE}/covers/${mangaId}/${coverRel.attributes.fileName}.256.jpg`;
     }
     return ''; 
 }
 
-// Render Grid/Carousel Cards
 function renderMangaCards(mangaList, container) {
     container.innerHTML = ''; 
     if (!mangaList || mangaList.length === 0) {
@@ -181,13 +162,16 @@ function renderMangaCards(mangaList, container) {
             let genre = 'Ongoing';
             if (manga.attributes?.tags) {
                 const genreTag = manga.attributes.tags.find(tag => tag.attributes?.group === 'genre');
-                if (genreTag && genreTag.attributes?.name?.en) {
-                    genre = genreTag.attributes.name.en;
-                }
+                if (genreTag && genreTag.attributes?.name?.en) genre = genreTag.attributes.name.en;
             }
 
             const card = document.createElement('div');
             card.className = 'manga-card';
+            
+            // NEW: Route to the details page when clicking a grid/carousel card
+            card.onclick = () => {
+                window.location.href = `details.html?id=${manga.id}`;
+            };
             
             card.innerHTML = `
                 <div class="cover-wrapper">
@@ -201,7 +185,6 @@ function renderMangaCards(mangaList, container) {
     });
 }
 
-// Initialize the Application
 document.addEventListener('DOMContentLoaded', () => {
     fetchCarouselData('trendingManga', 'originalLanguage[]=ja&order[followedCount]=desc');
     fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc');
