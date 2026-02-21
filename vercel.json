@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/proxy/api/:match*",
+      "destination": "https://api.mangadex.org/:match*"
+    },
+    {
+      "source": "/proxy/uploads/:match*",
+      "destination": "https://uploads.mangadex.org/:match*"
+    }
+  ]
+}
