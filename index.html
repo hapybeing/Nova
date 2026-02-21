@@ -31,20 +31,19 @@
             
             <div class="search-container">
                 <i class="ph ph-magnifying-glass"></i>
-                <input type="text" id="searchInput" placeholder="Search for titles, authors, or genres (Press Enter)..." autocomplete="off">
+                <input type="text" id="searchInput" placeholder="Search for titles, authors, or genres..." autocomplete="off">
+                <div id="searchDropdown" class="search-dropdown hidden"></div>
             </div>
         </div>
     </header>
 
     <main class="discover-section">
-        
         <section id="searchResultsSection" class="hidden">
             <div class="section-header">
                 <h2 id="searchHeading">Search Results</h2>
                 <button class="view-all" id="clearSearchBtn">Clear <i class="ph ph-x"></i></button>
             </div>
-            <div class="manga-grid" id="searchResultsGrid">
-                </div>
+            <div class="manga-grid" id="searchResultsGrid"></div>
         </section>
 
         <section class="carousel-section" id="rowManga">
@@ -76,8 +75,6 @@
                 <div class="loading-state">Syncing with network...</div>
             </div>
         </section>
-
     </main>
 </body>
 </html>
-
