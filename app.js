@@ -1,8 +1,6 @@
-// Configuration - Using Vercel Proxy
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
 
-// DOM Elements
 const searchInput = document.getElementById('searchInput');
 const searchDropdown = document.getElementById('searchDropdown');
 const searchResultsSection = document.getElementById('searchResultsSection');
@@ -10,11 +8,65 @@ const searchResultsGrid = document.getElementById('searchResultsGrid');
 const searchHeading = document.getElementById('searchHeading');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const carousels = document.querySelectorAll('.carousel-section');
-const navDiscover = document.getElementById('navDiscover');
+const genreLinks = document.querySelectorAll('.genre-link');
 
 let searchTimeout; 
 
-// LIVE SEARCH AUTOCOMPLETE
+// --- THE FIX: Aggressive English Title Extraction ---
+function getTitle(attributes) {
+    // 1. Check primary title
+    if (attributes.title && attributes.title.en) return attributes.title.en;
+    
+    // 2. Dig through alternative titles for the English one
+    if (attributes.altTitles && attributes.altTitles.length > 0) {
+        const enTitleObj = attributes.altTitles.find(t => t.en);
+        if (enTitleObj) return enTitleObj.en;
+    }
+    
+    // 3. Fallback to whatever is available
+    if (attributes.title) {
+        return attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title';
+    }
+    return 'Unknown Title';
+}
+// --------------------------------------------------
+
+function getCoverUrl(mangaId, relationships) {
+    if (!relationships) return ''; 
+    const coverRel = relationships.find(rel => rel.type === 'cover_art');
+    if (coverRel && coverRel.attributes && coverRel.attributes.fileName) {
+        return `${UPLOADS_BASE}/covers/${mangaId}/${coverRel.attributes.fileName}.256.jpg`;
+    }
+    return ''; 
+}
+
+// GENRE CLICK LOGIC
+genreLinks.forEach(link => {
+    link.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const genreId = e.target.getAttribute('data-genre');
+        const genreName = e.target.getAttribute('data-name');
+        
+        carousels.forEach(c => c.classList.add('hidden'));
+        searchResultsSection.classList.remove('hidden');
+        searchHeading.innerText = `Top ${genreName}`;
+        searchResultsGrid.innerHTML = '<div class="loading-state">Fetching titles...</div>';
+
+        try {
+            // Fetch manga specifically tagged with this genre UUID
+            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&includes[]=cover_art&order[followedCount]=desc`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Genre fetch failed');
+            
+            const data = await response.json();
+            renderMangaCards(data.data, searchResultsGrid);
+        } catch (error) {
+            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load genre.</div>`;
+        }
+    });
+});
+
+// LIVE SEARCH & FULL SEARCH
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -51,53 +103,41 @@ function renderLiveSearchDropdown(mangaList) {
         const title = getTitle(manga.attributes);
         const coverUrl = getCoverUrl(manga.id, manga.relationships);
         const status = manga.attributes.status ? manga.attributes.status.charAt(0).toUpperCase() + manga.attributes.status.slice(1) : 'Unknown';
-        const year = manga.attributes.year || status;
         
         const item = document.createElement('div');
         item.className = 'dropdown-item';
-        
         item.innerHTML = `
             <img src="${coverUrl}" alt="${title}" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
             <div class="dropdown-info">
                 <span class="dropdown-title">${title}</span>
-                <span class="dropdown-meta">${year}</span>
+                <span class="dropdown-meta">${status}</span>
             </div>
         `;
-        
-        // NEW: Route directly to the details page on click
-        item.addEventListener('click', () => {
-            window.location.href = `details.html?id=${manga.id}`;
-        });
-
+        item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
         searchDropdown.appendChild(item);
     });
 }
 
-// FULL GRID SEARCH
-async function executeFullSearch(query) {
-    carousels.forEach(c => c.classList.add('hidden'));
-    searchResultsSection.classList.remove('hidden');
-    searchHeading.innerText = `Results for "${query}"`;
-    searchResultsGrid.innerHTML = '<div class="loading-state">Searching database...</div>';
-    searchInput.blur(); 
-
-    try {
-        const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&contentRating[]=safe&includes[]=cover_art&order[relevance]=desc`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Search failed');
-        const data = await response.json();
-        renderMangaCards(data.data, searchResultsGrid);
-    } catch (error) {
-        searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to find results.</div>`;
-    }
-}
-
-searchInput.addEventListener('keypress', (e) => {
+searchInput.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
         if (query) {
             searchDropdown.classList.add('hidden');
-            executeFullSearch(query);
+            carousels.forEach(c => c.classList.add('hidden'));
+            searchResultsSection.classList.remove('hidden');
+            searchHeading.innerText = `Results for "${query}"`;
+            searchResultsGrid.innerHTML = '<div class="loading-state">Searching database...</div>';
+            searchInput.blur(); 
+
+            try {
+                const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&contentRating[]=safe&includes[]=cover_art&order[relevance]=desc`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Search failed');
+                const data = await response.json();
+                renderMangaCards(data.data, searchResultsGrid);
+            } catch (error) {
+                searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to find results.</div>`;
+            }
         }
     }
 });
@@ -108,15 +148,12 @@ document.addEventListener('click', (e) => {
     }
 });
 
-function resetSearch() {
+clearSearchBtn.addEventListener('click', () => {
     searchInput.value = '';
     searchDropdown.classList.add('hidden');
     searchResultsSection.classList.add('hidden');
     carousels.forEach(c => c.classList.remove('hidden'));
-}
-
-clearSearchBtn.addEventListener('click', resetSearch);
-navDiscover.addEventListener('click', (e) => { e.preventDefault(); resetSearch(); });
+});
 
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
@@ -127,25 +164,8 @@ async function fetchCarouselData(containerId, queryParams) {
         const data = await response.json();
         renderMangaCards(data.data, container);
     } catch (error) {
-        console.error('Nova Error:', error);
         container.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load.</div>`;
     }
-}
-
-function getTitle(attributes) {
-    if (!attributes || !attributes.title) return 'Unknown Title';
-    if (attributes.title.en) return attributes.title.en;
-    const firstAvailableKey = Object.keys(attributes.title)[0];
-    return attributes.title[firstAvailableKey] || 'Unknown Title';
-}
-
-function getCoverUrl(mangaId, relationships) {
-    if (!relationships) return ''; 
-    const coverRel = relationships.find(rel => rel.type === 'cover_art');
-    if (coverRel && coverRel.attributes && coverRel.attributes.fileName) {
-        return `${UPLOADS_BASE}/covers/${mangaId}/${coverRel.attributes.fileName}.256.jpg`;
-    }
-    return ''; 
 }
 
 function renderMangaCards(mangaList, container) {
@@ -167,12 +187,7 @@ function renderMangaCards(mangaList, container) {
 
             const card = document.createElement('div');
             card.className = 'manga-card';
-            
-            // NEW: Route to the details page when clicking a grid/carousel card
-            card.onclick = () => {
-                window.location.href = `details.html?id=${manga.id}`;
-            };
-            
+            card.onclick = () => { window.location.href = `details.html?id=${manga.id}`; };
             card.innerHTML = `
                 <div class="cover-wrapper">
                     <img src="${coverUrl}" alt="${title}" loading="lazy" referrerpolicy="no-referrer">
