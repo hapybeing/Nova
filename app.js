@@ -1,6 +1,6 @@
-// Configuration
-const API_BASE = 'https://api.mangadex.org';
-const UPLOADS_BASE = 'https://uploads.mangadex.org';
+// Configuration - Routing through Vercel Proxy to bypass network blocks
+const API_BASE = '/proxy/api';
+const UPLOADS_BASE = '/proxy/uploads';
 
 // DOM Elements
 const mangaGrid = document.getElementById('mangaGrid');
@@ -8,7 +8,7 @@ const mangaGrid = document.getElementById('mangaGrid');
 // Fetch Trending/Recent Manga
 async function fetchDiscoverManga() {
     try {
-        // Swapped to followedCount which is vastly more stable on MangaDex
+        // Fetching using our new Vercel proxy route
         const url = `${API_BASE}/manga?limit=12&contentRating[]=safe&includes[]=cover_art&order[followedCount]=desc`;
         const response = await fetch(url);
         
