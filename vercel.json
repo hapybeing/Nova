@@ -7,6 +7,10 @@
     {
       "source": "/proxy/uploads/:match*",
       "destination": "https://uploads.mangadex.org/:match*"
+    },
+    {
+      "source": "/proxy/comick/:match*",
+      "destination": "https://api.comick.app/:match*"
     }
   ]
 }
