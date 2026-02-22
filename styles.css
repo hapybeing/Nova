@@ -18,14 +18,13 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 /* =========================================
    NAVIGATION & GENRE DROPDOWN
 ========================================= */
-.glass-nav { position: fixed; top: 0; width: 100%; z-index: 1000; background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--glass-border); }
+.glass-nav { position: fixed; top: 0; width: 100%; z-index: 2000; background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--glass-border); }
 .nav-content { max-width: 1400px; margin: 0 auto; padding: 1.2rem 2rem; display: flex; justify-content: space-between; align-items: center; }
 .logo { font-weight: 900; letter-spacing: 2px; font-size: 1.5rem; }
 .nav-links { display: flex; align-items: center; }
 .nav-links a { color: var(--text-secondary); text-decoration: none; margin-left: 2rem; font-weight: 500; transition: color 0.3s ease; display: flex; align-items: center; gap: 0.3rem; }
 .nav-links a.active, .nav-links a:hover { color: var(--text-primary); }
 
-/* Discover Dropdown Styles */
 .dropdown-wrapper { position: relative; display: inline-block; }
 .nav-dropdown {
     position: absolute; top: 150%; left: 50%; transform: translateX(-50%) translateY(10px);
@@ -43,17 +42,25 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 ========================================= */
 .hero { position: relative; min-height: 60vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8rem 2rem 4rem; overflow: hidden; }
 .glow-orb { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60vw; height: 60vw; background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); z-index: -1; filter: blur(60px); }
+
+/* UI FIX: Lifts content above the glow orb */
+.hero-content { position: relative; z-index: 10; width: 100%; }
 .hero-title { font-size: clamp(3rem, 8vw, 5.5rem); font-weight: 900; line-height: 1.1; letter-spacing: -0.03em; margin-bottom: 1rem; }
 .accent-text { color: var(--accent); text-shadow: 0 0 30px var(--accent-glow); }
 .hero-subtitle { color: var(--text-secondary); font-size: clamp(1rem, 2vw, 1.25rem); max-width: 600px; margin: 0 auto 3rem; }
 
-.search-container { position: relative; max-width: 600px; margin: 0 auto; text-align: left; }
+/* UI FIX: Forces search bar and dropdown above all content */
+.search-container { position: relative; max-width: 600px; margin: 0 auto; text-align: left; z-index: 50; }
 .search-container i.ph-magnifying-glass { position: absolute; left: 1.5rem; top: 1.2rem; color: var(--text-secondary); font-size: 1.2rem; z-index: 2; }
 .search-container input { width: 100%; padding: 1.2rem 1.5rem 1.2rem 3.5rem; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: 100px; color: var(--text-primary); font-size: 1rem; font-family: inherit; outline: none; transition: all 0.3s ease; position: relative; z-index: 1; }
 .search-container input:focus { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 
-/* Live Search Dropdown */
-.search-dropdown { position: absolute; top: 100%; left: 0; right: 0; margin-top: 0.5rem; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; z-index: 1001; box-shadow: 0 20px 40px rgba(0,0,0,0.8); max-height: 350px; overflow-y: auto; }
+/* UI FIX: Scrollable, un-trapped Dropdown */
+.search-dropdown { 
+    position: absolute; top: calc(100% + 10px); left: 0; right: 0; background: var(--bg-surface); 
+    border: 1px solid var(--glass-border); border-radius: 16px; z-index: 1000; 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.8); max-height: 50vh; overflow-y: auto; overscroll-behavior: contain; 
+}
 .search-dropdown::-webkit-scrollbar { width: 6px; }
 .search-dropdown::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
 .dropdown-item { display: flex; align-items: center; padding: 0.75rem 1rem; gap: 1rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s ease; }
@@ -84,8 +91,16 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .manga-grid .manga-card { flex: none; width: 100%; }
 .manga-card:hover { transform: translateY(-8px); }
 
-.cover-wrapper { position: relative; aspect-ratio: 2 / 3; border-radius: 12px; overflow: hidden; background: var(--bg-surface); margin-bottom: 0.75rem; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-.cover-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; }
+/* UI FIX: Uniform Covers via Aspect Ratio Hack */
+.cover-wrapper { 
+    position: relative; width: 100%; padding-top: 150%; /* 2:3 Ratio */
+    border-radius: 12px; overflow: hidden; background: var(--bg-surface); 
+    margin-bottom: 0.75rem; box-shadow: 0 10px 20px rgba(0,0,0,0.5); 
+}
+.cover-wrapper img { 
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+    object-fit: cover; transition: transform 0.6s ease; 
+}
 .manga-card:hover .cover-wrapper img { transform: scale(1.05); }
 
 .manga-title { font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.2rem; }
@@ -94,7 +109,7 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
 /* =========================================
-   PHASE 3: DETAILS & CHAPTERS PAGE 
+   DETAILS & CHAPTERS PAGE 
 ========================================= */
 .details-container { max-width: 1200px; margin: 8rem auto 3rem; padding: 0 2rem; display: flex; gap: 3rem; }
 .details-cover { flex: 0 0 280px; }
@@ -113,7 +128,7 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .chapter-title { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
 
 /* =========================================
-   PHASE 4: CHAPTER READER & CONTROLS
+   CHAPTER READER & CONTROLS
 ========================================= */
 .reader-body { background-color: #000000; }
 .reader-nav { position: fixed; top: 0; width: 100%; z-index: 1000; background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--glass-border); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
