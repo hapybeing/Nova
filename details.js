@@ -1,6 +1,6 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-const COMICK_API = 'https://api.comick.io'; 
+const COMICK_PROXY = '/proxy/comick'; // Restored proxy to bypass browser CORS blocks
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -25,6 +25,9 @@ async function loadMangaDetails() {
         return;
     }
 
+    // Nuke old empty caches so it is forced to retry
+    sessionStorage.removeItem(`nova_chapters_${mangaId}`);
+
     try {
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         const infoData = await infoResponse.json();
@@ -47,20 +50,20 @@ async function loadMangaDetails() {
             });
         }
 
-        // THE FIXED NINJA ENGINE
+        // THE CORS-BYPASS ENGINE
         if (chapters.length === 0) {
             try {
-                const searchRes = await fetch(`${COMICK_API}/v1.0/search?q=${encodeURIComponent(searchTitle)}&limit=1`);
+                // Using the Vercel proxy so the browser doesn't block the request
+                const searchRes = await fetch(`${COMICK_PROXY}/v1.0/search?q=${encodeURIComponent(searchTitle)}&limit=1`);
                 if (searchRes.ok) {
                     const searchData = await searchRes.json();
                     if (searchData && searchData.length > 0) {
                         
-                        // THE FATAL FLAW FIXED: Using the secret Hash ID (hid) instead of the slug
                         const targetHid = searchData[0].hid; 
                         
-                        // Safely fetching 500 chapters across 5 pages
+                        // Safe pagination to prevent server crash
                         const requests = [1, 2, 3, 4, 5].map(page =>
-                            fetch(`${COMICK_API}/comic/${targetHid}/chapters?lang=en&limit=100&page=${page}`)
+                            fetch(`${COMICK_PROXY}/comic/${targetHid}/chapters?lang=en&limit=100&page=${page}`)
                             .then(r => r.ok ? r.json() : null)
                             .catch(() => null)
                         );
@@ -90,7 +93,7 @@ async function loadMangaDetails() {
                     }
                 }
             } catch (e) {
-                console.warn("Aggregator connection failed.", e);
+                console.warn("Aggregator fetch failed.");
             }
         }
 
@@ -128,8 +131,8 @@ function renderDetails(manga, chapters) {
     if (chapters.length === 0) {
         chaptersHTML = `
             <div class="loading-state" style="text-align: left; padding: 2.5rem; background: #18181b; border-radius: 16px; border: 1px solid var(--glass-border);">
-                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">Check Back Later</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">Our engines searched all available networks, but this title is currently locked.</p>
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Available</h3>
+                <p style="color: var(--text-secondary); line-height: 1.6;">Our engines searched all available networks, but this title is currently locked or heavily licensed.</p>
             </div>
         `;
     } else {
