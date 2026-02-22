@@ -15,13 +15,9 @@ function getTitle(attributes) {
 }
 
 async function loadMangaDetails() {
-    if (!mangaId) {
-        detailsMain.innerHTML = `<div class="loading-state">No Manga Selected.</div>`;
-        return;
-    }
+    if (!mangaId) return;
 
     try {
-        // Fetch Metadata
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         const infoData = await infoResponse.json();
         const manga = infoData.data;
@@ -29,7 +25,6 @@ async function loadMangaDetails() {
         let chapters = [];
         let source = 'mangadex';
 
-        // Fetch MangaDex Chapters
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         if (feedResponse.ok) {
             const feedData = await feedResponse.json();
@@ -43,7 +38,6 @@ async function loadMangaDetails() {
             });
         }
 
-        // Cache the safe MangaDex data
         sessionStorage.setItem(`nova_chapters_${mangaId}`, JSON.stringify({ chapters, source }));
         renderDetails(manga, chapters);
 
@@ -74,15 +68,19 @@ function renderDetails(manga, chapters) {
     const authorRel = manga.relationships.find(rel => rel.type === 'author');
     if (authorRel && authorRel.attributes && authorRel.attributes.name) authorName = authorRel.attributes.name;
 
+    // Check if manga is currently saved in library
+    let library = JSON.parse(localStorage.getItem('nova_library')) || [];
+    let isSaved = library.some(m => m.id === mangaId);
+
     let chaptersHTML = '';
     
-    // THE GRACEFUL FALLBACK UI
+    // THE SECRET KEEPER UI
     if (chapters.length === 0) {
         chaptersHTML = `
             <div class="loading-state" style="text-align: center; padding: 3rem 2rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--glass-border);">
                 <i class="ph ph-lock-key" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
                 <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Found</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">This title is highly protected by official publishers or currently has no English scanlations on MangaDex.</p>
+                <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">This title is highly protected by official publishers or currently has no English scanlations available on our network.</p>
                 <a href="https://google.com/search?q=read+${encodeURIComponent(title)}+manga+online" target="_blank" style="background: var(--accent); color: #fff; padding: 0.8rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: all 0.2s;">
                     Search Web for Chapters <i class="ph ph-arrow-square-out" style="margin-left: 5px;"></i>
                 </a>
@@ -114,6 +112,12 @@ function renderDetails(manga, chapters) {
             <div class="details-info">
                 <h1 class="details-title">${title}</h1>
                 <div class="details-author">By ${authorName}</div>
+                
+                <button id="saveBtn" class="control-btn" style="margin-bottom: 2rem; background: ${isSaved ? 'var(--accent)' : 'var(--bg-surface)'}; border-color: ${isSaved ? 'var(--accent)' : 'var(--glass-border)'}; padding: 0.8rem 1.5rem;">
+                    <i id="saveBtnIcon" class="ph ${isSaved ? 'ph-bookmark-simple-fill' : 'ph-bookmark-simple'}"></i> 
+                    <span id="saveBtnText">${isSaved ? 'In Library' : 'Save to Library'}</span>
+                </button>
+
                 <p class="details-synopsis">${description}</p>
             </div>
         </div>
@@ -124,6 +128,29 @@ function renderDetails(manga, chapters) {
             </div>
         </section>
     `;
+
+    // ADD LIBRARY LOGIC
+    document.getElementById('saveBtn').addEventListener('click', () => {
+        let currentLibrary = JSON.parse(localStorage.getItem('nova_library')) || [];
+        const existingIndex = currentLibrary.findIndex(m => m.id === mangaId);
+        
+        if (existingIndex > -1) {
+            // Remove from library
+            currentLibrary.splice(existingIndex, 1);
+            document.getElementById('saveBtnIcon').className = 'ph ph-bookmark-simple';
+            document.getElementById('saveBtnText').innerText = 'Save to Library';
+            document.getElementById('saveBtn').style.background = 'var(--bg-surface)';
+            document.getElementById('saveBtn').style.borderColor = 'var(--glass-border)';
+        } else {
+            // Add to library
+            currentLibrary.push({ id: mangaId, title: title, coverUrl: coverUrl, lastReadChapterNum: null });
+            document.getElementById('saveBtnIcon').className = 'ph ph-bookmark-simple-fill';
+            document.getElementById('saveBtnText').innerText = 'In Library';
+            document.getElementById('saveBtn').style.background = 'var(--accent)';
+            document.getElementById('saveBtn').style.borderColor = 'var(--accent)';
+        }
+        localStorage.setItem('nova_library', JSON.stringify(currentLibrary));
+    });
 }
 
 document.addEventListener('DOMContentLoaded', loadMangaDetails);
