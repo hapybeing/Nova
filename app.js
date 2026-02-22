@@ -1,5 +1,5 @@
-const API_BASE = 'https://api.mangadex.org'; // Going direct to source
-const UPLOADS_BASE = 'https://uploads.mangadex.org';
+const API_BASE = '/proxy/api';
+const UPLOADS_BASE = '/proxy/uploads';
 
 const searchInput = document.getElementById('searchInput');
 const searchDropdown = document.getElementById('searchDropdown');
@@ -29,7 +29,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK: Fixed ratings to allow Isekai and Action to populate
+// Fixed Discover Logic (Proxy restored, Suggestive rating allowed for Isekai/Action)
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -47,12 +47,12 @@ genreLinks.forEach(link => {
             const data = await response.json();
             renderMangaCards(data.data, searchResultsGrid);
         } catch (error) {
-            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load genre.</div>`;
+            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load genre. Check your network.</div>`;
         }
     });
 });
 
-// LIVE SEARCH
+// LIVE SEARCH (Proxy restored)
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -85,7 +85,7 @@ searchInput.addEventListener('input', (e) => {
                     <img src="${coverUrl}" alt="cover" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
                     <div class="dropdown-info">
                         <span class="dropdown-title">${title}</span>
-                        <span class="dropdown-meta">${status}</span>
+                        <span class="dropdown-meta" style="text-transform: capitalize;">${status}</span>
                     </div>
                 `;
                 item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
@@ -97,7 +97,6 @@ searchInput.addEventListener('input', (e) => {
     }, 500);
 });
 
-// FULL SEARCH (Enter key)
 searchInput.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
@@ -134,7 +133,6 @@ clearSearchBtn.addEventListener('click', () => {
     carousels.forEach(c => c.classList.remove('hidden'));
 });
 
-// CAROUSELS
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
     try {
@@ -149,10 +147,8 @@ async function fetchCarouselData(containerId, queryParams) {
 
 function renderMangaCards(mangaList, container) {
     container.innerHTML = ''; 
-    if (!mangaList || mangaList.length === 0) {
-        container.innerHTML = `<div class="loading-state">No items found.</div>`;
-        return;
-    }
+    if (!mangaList || mangaList.length === 0) return;
+    
     mangaList.forEach(manga => {
         try {
             const title = getTitle(manga.attributes);
