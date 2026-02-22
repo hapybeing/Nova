@@ -1,7 +1,5 @@
 const API_BASE = '/proxy/api';
-const PROXY_URL = 'https://api.codetabs.com/v1/proxy?quest=';
-// Image smuggler to bypass MangaKakalot's hotlink protection
-const IMAGE_SMUGGLER = 'https://wsrv.nl/?url='; 
+const CONSUMET_BASE = '/proxy/consumet/manga/mangakakalot';
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -30,7 +28,6 @@ async function loadReader() {
         return;
     }
 
-    // Load chapters instantly from memory
     const cachedData = sessionStorage.getItem(`nova_chapters_${mangaId}`);
     if (cachedData) {
         const parsed = JSON.parse(cachedData);
@@ -41,7 +38,6 @@ async function loadReader() {
     try {
         readerContainer.innerHTML = ''; 
 
-        // --- MANGADEX OFFICIAL IMAGES ---
         if (sourceEngine === 'mangadex') {
             const response = await fetch(`${API_BASE}/at-home/server/${chapterId}`);
             if (!response.ok) throw new Error('Image server failed');
@@ -56,21 +52,15 @@ async function loadReader() {
                 readerContainer.appendChild(imgEl);
             });
         } 
-        // --- MANGAKAKALOT RAW HTML IMAGE HEIST ---
-        else if (sourceEngine === 'mangakakalot') {
-            const decodedUrl = atob(chapterId); 
-            const res = await fetch(`${PROXY_URL}${encodeURIComponent(decodedUrl)}`);
-            const html = await res.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
+        else if (sourceEngine === 'consumet') {
+            // Ask Consumet for the image pages
+            const response = await fetch(`${CONSUMET_BASE}/read?chapterId=${chapterId}`);
+            if (!response.ok) throw new Error('Consumet server failed');
+            const data = await response.json();
             
-            // Extract the raw image links from their HTML
-            const images = doc.querySelectorAll('.container-chapter-reader img');
-            images.forEach(img => {
+            data.forEach(img => {
                 const imgEl = document.createElement('img');
-                // Pass the image through the smuggler and convert to webp for insane load speeds
-                let rawSrc = img.src || img.getAttribute('data-src');
-                imgEl.src = `${IMAGE_SMUGGLER}${encodeURIComponent(rawSrc)}&output=webp`;
+                imgEl.src = img.img; 
                 imgEl.className = 'reader-page';
                 imgEl.loading = 'lazy';
                 imgEl.setAttribute('referrerpolicy', 'no-referrer');
@@ -84,7 +74,7 @@ async function loadReader() {
 
     } catch (error) {
         console.error(error);
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Extraction failed. Server blocking request.</div>`;
+        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Extraction failed.</div>`;
     }
 }
 
