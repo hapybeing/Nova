@@ -1,5 +1,5 @@
-const API_BASE = 'https://corsproxy.io/?https://api.mangadex.org';
-const COMICK_API = 'https://corsproxy.io/?https://api.comick.io';
+const API_BASE = '/proxy/api';
+const COMICK_PROXY = '/proxy/comick'; 
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -48,8 +48,8 @@ async function loadReader() {
             });
         } 
         else if (sourceEngine === 'comick') {
-            // Tunnel retrieves the data, bypassing CORS
-            const response = await fetch(`${COMICK_API}/chapter/${chapterId}`);
+            // Using proxy to safely bypass browser blocks
+            const response = await fetch(`${COMICK_PROXY}/chapter/${chapterId}`);
             const data = await response.json();
             
             data.chapter.images.forEach(img => {
@@ -65,7 +65,7 @@ async function loadReader() {
         if (allChapters.length > 0) setupNavigation();
 
     } catch (error) {
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images from secure tunnel.</div>`;
+        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images securely.</div>`;
     }
 }
 
@@ -97,4 +97,3 @@ function setupNavigation() {
 }
 
 document.addEventListener('DOMContentLoaded', loadReader);
-
