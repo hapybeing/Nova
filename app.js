@@ -1,7 +1,5 @@
-// NEW TUNNEL: Bypasses Vercel and ISP Blocks completely
-const API_BASE = 'https://corsproxy.io/?https://api.mangadex.org';
-// Loading images directly for maximum speed
-const UPLOADS_BASE = 'https://uploads.mangadex.org';
+const API_BASE = '/proxy/api';
+const UPLOADS_BASE = '/proxy/uploads';
 
 const searchInput = document.getElementById('searchInput');
 const searchDropdown = document.getElementById('searchDropdown');
@@ -31,7 +29,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK: Isekai and Action fully unlocked
+// GENRE CLICK: Suggestive allowed for Isekai. Erotica strictly removed to avoid 403 crashes.
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -41,7 +39,7 @@ genreLinks.forEach(link => {
         carousels.forEach(c => c.classList.add('hidden'));
         searchResultsSection.classList.remove('hidden');
         searchHeading.innerText = `Top ${genreName}`;
-        searchResultsGrid.innerHTML = '<div class="loading-state">Syncing database via tunnel...</div>';
+        searchResultsGrid.innerHTML = '<div class="loading-state">Syncing securely...</div>';
 
         try {
             const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[followedCount]=desc`;
@@ -55,7 +53,7 @@ genreLinks.forEach(link => {
     });
 });
 
-// LIVE SEARCH: Tunnel routed
+// LIVE SEARCH
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -63,7 +61,7 @@ searchInput.addEventListener('input', (e) => {
     if (!query) { searchDropdown.classList.add('hidden'); return; }
 
     searchDropdown.classList.remove('hidden');
-    searchDropdown.innerHTML = '<div class="dropdown-msg">Searching database...</div>';
+    searchDropdown.innerHTML = '<div class="dropdown-msg">Searching secure database...</div>';
 
     searchTimeout = setTimeout(async () => {
         try {
@@ -100,6 +98,7 @@ searchInput.addEventListener('input', (e) => {
     }, 500);
 });
 
+// FULL SEARCH
 searchInput.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
@@ -177,8 +176,9 @@ function renderMangaCards(mangaList, container) {
     });
 }
 
+// STAGGERED LOADING: Prevents MangaDex from blocking your app for asking too fast.
 document.addEventListener('DOMContentLoaded', () => {
     fetchCarouselData('trendingManga', 'originalLanguage[]=ja&order[followedCount]=desc');
-    setTimeout(() => fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc'), 500);
-    setTimeout(() => fetchCarouselData('trendingManhua', 'originalLanguage[]=zh&order[followedCount]=desc'), 1000);
+    setTimeout(() => fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc'), 1000);
+    setTimeout(() => fetchCarouselData('trendingManhua', 'originalLanguage[]=zh&order[followedCount]=desc'), 2000);
 });
