@@ -12,24 +12,18 @@ const genreLinks = document.querySelectorAll('.genre-link');
 
 let searchTimeout; 
 
-// --- THE FIX: Aggressive English Title Extraction ---
+// Extract English Title
 function getTitle(attributes) {
-    // 1. Check primary title
     if (attributes.title && attributes.title.en) return attributes.title.en;
-    
-    // 2. Dig through alternative titles for the English one
     if (attributes.altTitles && attributes.altTitles.length > 0) {
         const enTitleObj = attributes.altTitles.find(t => t.en);
         if (enTitleObj) return enTitleObj.en;
     }
-    
-    // 3. Fallback to whatever is available
     if (attributes.title) {
         return attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title';
     }
     return 'Unknown Title';
 }
-// --------------------------------------------------
 
 function getCoverUrl(mangaId, relationships) {
     if (!relationships) return ''; 
@@ -40,7 +34,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK LOGIC
+// GENRE CLICK LOGIC (Adventure Fix applied here)
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -53,8 +47,8 @@ genreLinks.forEach(link => {
         searchResultsGrid.innerHTML = '<div class="loading-state">Fetching titles...</div>';
 
         try {
-            // Fetch manga specifically tagged with this genre UUID
-            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&includes[]=cover_art&order[followedCount]=desc`;
+            // FIX: Removed contentRating[]=safe so Action/Adventure titles load correctly
+            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('Genre fetch failed');
             
@@ -66,7 +60,7 @@ genreLinks.forEach(link => {
     });
 });
 
-// LIVE SEARCH & FULL SEARCH
+// LIVE SEARCH 
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -81,7 +75,7 @@ searchInput.addEventListener('input', (e) => {
 
     searchTimeout = setTimeout(async () => {
         try {
-            const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=5&contentRating[]=safe&includes[]=cover_art&order[relevance]=desc`;
+            const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=5&includes[]=cover_art&order[relevance]=desc`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('Search failed');
             const data = await response.json();
@@ -118,6 +112,7 @@ function renderLiveSearchDropdown(mangaList) {
     });
 }
 
+// FULL SEARCH (Enter key)
 searchInput.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
@@ -130,7 +125,7 @@ searchInput.addEventListener('keypress', async (e) => {
             searchInput.blur(); 
 
             try {
-                const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&contentRating[]=safe&includes[]=cover_art&order[relevance]=desc`;
+                const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&includes[]=cover_art&order[relevance]=desc`;
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Search failed');
                 const data = await response.json();
@@ -142,12 +137,14 @@ searchInput.addEventListener('keypress', async (e) => {
     }
 });
 
+// Close dropdown if clicked outside
 document.addEventListener('click', (e) => {
     if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
         searchDropdown.classList.add('hidden');
     }
 });
 
+// CLEAR SEARCH
 clearSearchBtn.addEventListener('click', () => {
     searchInput.value = '';
     searchDropdown.classList.add('hidden');
@@ -155,10 +152,11 @@ clearSearchBtn.addEventListener('click', () => {
     carousels.forEach(c => c.classList.remove('hidden'));
 });
 
+// CAROUSEL DATA FETCHING
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
     try {
-        const url = `${API_BASE}/manga?limit=15&contentRating[]=safe&includes[]=cover_art&${queryParams}`;
+        const url = `${API_BASE}/manga?limit=15&includes[]=cover_art&${queryParams}`;
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         const data = await response.json();
@@ -168,6 +166,7 @@ async function fetchCarouselData(containerId, queryParams) {
     }
 }
 
+// RENDER CARDS
 function renderMangaCards(mangaList, container) {
     container.innerHTML = ''; 
     if (!mangaList || mangaList.length === 0) {
@@ -200,6 +199,7 @@ function renderMangaCards(mangaList, container) {
     });
 }
 
+// INITIALIZE APP
 document.addEventListener('DOMContentLoaded', () => {
     fetchCarouselData('trendingManga', 'originalLanguage[]=ja&order[followedCount]=desc');
     fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc');
