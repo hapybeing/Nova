@@ -1,6 +1,6 @@
-const API_BASE = 'https://corsproxy.io/?https://api.mangadex.org';
-const COMICK_API = 'https://corsproxy.io/?https://api.comick.io';
-const UPLOADS_BASE = 'https://uploads.mangadex.org';
+const API_BASE = '/proxy/api';
+const UPLOADS_BASE = '/proxy/uploads';
+const COMICK_PROXY = '/proxy/comick'; // Bypasses Brave's third-party blocking
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -44,19 +44,20 @@ async function loadMangaDetails() {
             });
         }
 
-        // THE CORSPROXY AGGREGATOR FALLBACK
+        // THE SECURE FALLBACK
         if (chapters.length === 0) {
-            console.log("Engaging Unblockable Scraper for:", searchTitle);
             try {
-                const searchRes = await fetch(`${COMICK_API}/v1.0/search?q=${encodeURIComponent(searchTitle)}&limit=1`);
+                // Sent through the Vercel proxy to evade Brave Shields
+                const searchRes = await fetch(`${COMICK_PROXY}/v1.0/search?q=${encodeURIComponent(searchTitle)}&limit=1`);
                 if (searchRes.ok) {
                     const searchData = await searchRes.json();
                     
                     if (searchData && searchData.length > 0) {
                         const targetHid = searchData[0].hid; 
                         
+                        // Grab pages safely to prevent server crashes
                         const requests = [1, 2, 3].map(page =>
-                            fetch(`${COMICK_API}/comic/${targetHid}/chapters?lang=en&limit=100&page=${page}`)
+                            fetch(`${COMICK_PROXY}/comic/${targetHid}/chapters?lang=en&limit=100&page=${page}`)
                             .then(r => r.ok ? r.json() : null)
                             .catch(() => null)
                         );
@@ -84,7 +85,7 @@ async function loadMangaDetails() {
                     }
                 }
             } catch (e) {
-                console.error("Scraper fully blocked.");
+                console.warn("Aggregator fallback blocked or failed.");
             }
         }
 
@@ -123,7 +124,7 @@ function renderDetails(manga, chapters) {
         chaptersHTML = `
             <div class="loading-state" style="text-align: left; padding: 2.5rem; background: #18181b; border-radius: 16px; border: 1px solid var(--glass-border);">
                 <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Available</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">Our secure tunnel was blocked by external licensing servers.</p>
+                <p style="color: var(--text-secondary); line-height: 1.6;">Our proxy was completely blocked by security. We cannot extract these chapters at this time.</p>
             </div>
         `;
     } else {
