@@ -8,7 +8,8 @@ const searchResultsGrid = document.getElementById('searchResultsGrid');
 const searchHeading = document.getElementById('searchHeading');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const carousels = document.querySelectorAll('.carousel-section');
-const genreLinks = document.querySelectorAll('.genre-link');
+// Updated to listen for clicks on the new pill buttons
+const genreLinks = document.querySelectorAll('.genre-pill');
 
 let searchTimeout; 
 
@@ -29,7 +30,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK: Filtered to ONLY show manga with English chapters
+// GENRE CLICK: The Strict Chapter Filter
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -42,8 +43,8 @@ genreLinks.forEach(link => {
         searchResultsGrid.innerHTML = '<div class="loading-state">Syncing secure database...</div>';
 
         try {
-            // Added availableTranslatedLanguage[]=en
-            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&includes[]=cover_art&order[followedCount]=desc`;
+            // THE FIX: hasAvailableChapters=true forces it to ONLY return manga we actually host
+            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&hasAvailableChapters=true&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
             if (!response.ok) throw new Error("API Blocked");
             const data = await response.json();
@@ -54,7 +55,7 @@ genreLinks.forEach(link => {
     });
 });
 
-// SEARCH: Kept broad so users can find anything
+// SEARCH: Kept broad so users can find highly licensed titles and use the "Search Web" fallback
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -135,11 +136,11 @@ clearSearchBtn.addEventListener('click', () => {
     carousels.forEach(c => c.classList.remove('hidden'));
 });
 
-// CAROUSELS: Filtered to ONLY show manga with English chapters
+// CAROUSELS: The Strict Chapter Filter Applied Here Too
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
     try {
-        const url = `${API_BASE}/manga?limit=15&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&includes[]=cover_art&${queryParams}`;
+        const url = `${API_BASE}/manga?limit=15&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&hasAvailableChapters=true&includes[]=cover_art&${queryParams}`;
         const response = await fetch(url);
         const data = await response.json();
         renderMangaCards(data.data, container);
