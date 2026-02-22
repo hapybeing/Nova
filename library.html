@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nova | My Library</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="glass-nav">
+        <div class="nav-content">
+            <div class="logo">NOVA</div>
+            <div class="nav-links">
+                <a href="index.html">Discover</a>
+                <a href="#" class="active">Library</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="discover-section" style="margin-top: 8rem;">
+        <div class="section-header">
+            <h2>My Library</h2>
+        </div>
+        <div class="manga-grid" id="libraryGrid">
+            </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('libraryGrid');
+            let library = JSON.parse(localStorage.getItem('nova_library')) || [];
+            
+            if(library.length === 0) {
+                grid.innerHTML = '<div class="loading-state" style="grid-column: 1 / -1;">Your library is empty. Go discover some titles!</div>';
+            } else {
+                // Reverse the array so most recently added is at the top
+                library.reverse();
+                grid.innerHTML = library.map(m => `
+                    <div class="manga-card" onclick="window.location.href='details.html?id=${m.id}'">
+                        <div class="cover-wrapper">
+                            <img src="${m.coverUrl}" alt="cover" loading="lazy" referrerpolicy="no-referrer">
+                        </div>
+                        <h3 class="manga-title" title="${m.title}">${m.title}</h3>
+                        <p class="manga-tags" style="color: var(--accent); font-weight: 600;">
+                            ${m.lastReadChapterNum ? 'Last Read: Ch. ' + m.lastReadChapterNum : 'Unread'}
+                        </p>
+                    </div>
+                `).join('');
+            }
+        });
+    </script>
+</body>
+</html>
