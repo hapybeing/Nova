@@ -17,7 +17,6 @@ function getTitle(attributes) {
 }
 
 function sanitizeTitleForSearch(title) {
-    // Strips out brackets and parentheses to ensure a perfect match on the shadow API
     return title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim();
 }
 
@@ -28,7 +27,6 @@ async function loadMangaDetails() {
     }
 
     try {
-        // 1. Fetch High-Quality Metadata from MangaDex
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         if (!infoResponse.ok) throw new Error('Failed to load manga data');
         const infoData = await infoResponse.json();
@@ -36,9 +34,9 @@ async function loadMangaDetails() {
 
         let chapters = [];
         let source = 'mangadex';
-        let comicHid = null;
+        let comicSlug = null; // CHANGED FROM comicHid TO comicSlug
 
-        // 2. Try MangaDex Chapters First
+        // Try MangaDex Chapters First
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         if (feedResponse.ok) {
             const feedData = await feedResponse.json();
@@ -52,31 +50,33 @@ async function loadMangaDetails() {
             });
         }
 
-        // 3. STEALTH FALLBACK: If MangaDex is blocked, tunnel to the active aggregator silently
+        // THE NUCLEAR SHADOW FALLBACK
         if (chapters.length === 0) {
             const cleanTitle = sanitizeTitleForSearch(getTitle(manga.attributes));
-            console.log(`Silently fetching missing chapters for: ${cleanTitle}`);
+            console.log(`Shadow fetch engaged for: ${cleanTitle}`);
             
             try {
-                const searchRes = await fetch(`${COMICK_BASE}/v1.0/search?q=${encodeURIComponent(cleanTitle)}&limit=3&t=true`);
+                // Search ComicK without the restrictive 't=true' flag
+                const searchRes = await fetch(`${COMICK_BASE}/v1.0/search?q=${encodeURIComponent(cleanTitle)}&limit=5`);
                 if (searchRes.ok) {
                     const searchData = await searchRes.json();
                     if (searchData && searchData.length > 0) {
-                        const bestMatch = searchData.find(res => res.md_comics) || searchData[0];
-                        comicHid = bestMatch.hid; 
+                        // Extract the exact URL slug
+                        comicSlug = searchData[0].slug; 
                         
-                        const chapRes = await fetch(`${COMICK_BASE}/comic/${comicHid}/chapters?lang=en&limit=500`);
+                        // Fetch using the slug with a massive limit to bypass pagination gaps
+                        const chapRes = await fetch(`${COMICK_BASE}/comic/${comicSlug}/chapters?lang=en&limit=9999`);
                         if (chapRes.ok) {
                             const chapData = await chapRes.json();
                             if (chapData.chapters && chapData.chapters.length > 0) {
                                 const seen = new Set();
                                 chapters = chapData.chapters.filter(c => {
-                                    if (!c.chap) return true;
-                                    if (seen.has(c.chap)) return false;
+                                    if (!c.chap) return true; // Keep oneshots
+                                    if (seen.has(c.chap)) return false; // Remove duplicate groups
                                     seen.add(c.chap);
                                     return true;
                                 }).map(c => ({
-                                    id: c.hid,
+                                    id: c.hid, // We still need hid for the actual image fetch
                                     attributes: { chapter: c.chap, title: c.title }
                                 }));
                                 source = 'comick';
@@ -85,11 +85,11 @@ async function loadMangaDetails() {
                     }
                 }
             } catch (fallbackError) {
-                console.error("Shadow fetch failed silently:", fallbackError);
+                console.error("Shadow fetch failed:", fallbackError);
             }
         }
 
-        renderDetails(manga, chapters, source, comicHid);
+        renderDetails(manga, chapters, source, comicSlug);
     } catch (error) {
         detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">Network Error. Trying to reconnect...</div>`;
     }
@@ -108,7 +108,7 @@ function getCoverUrl(relationships) {
     return '';
 }
 
-function renderDetails(manga, chapters, source, comicHid) {
+function renderDetails(manga, chapters, source, comicSlug) {
     const title = getTitle(manga.attributes);
     const description = getDescription(manga.attributes);
     const coverUrl = getCoverUrl(manga.relationships);
@@ -122,8 +122,8 @@ function renderDetails(manga, chapters, source, comicHid) {
     if (chapters.length === 0) {
         chaptersHTML = `
             <div class="loading-state" style="text-align: left; padding: 2.5rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--glass-border);">
-                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">Check Back Later</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">Translators are currently working on this title. Chapters will appear here once they are available on our network.</p>
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Available</h3>
+                <p style="color: var(--text-secondary); line-height: 1.6;">Our aggregator engines are currently blocked from fetching this specific title due to heavy licensing.</p>
             </div>
         `;
     } else {
@@ -131,9 +131,7 @@ function renderDetails(manga, chapters, source, comicHid) {
             const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
             const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
             
-            // Pass the source to the reader URL so the reader knows which database to query, 
-            // but the user just sees a normal link.
-            const comicParam = source === 'comick' ? `&comicHid=${comicHid}` : '';
+            const comicParam = source === 'comick' ? `&comicSlug=${comicSlug}` : '';
             const readerUrl = `reader.html?id=${mangaId}&chapterId=${chapter.id}&source=${source}${comicParam}`;
             
             return `
