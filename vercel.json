@@ -10,7 +10,7 @@
     },
     {
       "source": "/proxy/comick/:match*",
-      "destination": "https://api.comick.app/:match*"
+      "destination": "https://api.comick.io/:match*"
     }
   ]
 }
