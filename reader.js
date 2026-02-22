@@ -1,7 +1,4 @@
 const API_BASE = '/proxy/api';
-const HTML_PROXY = 'https://api.allorigins.win/get?url=';
-// This acts as a disguise so Manganato doesn't know we are stealing their images
-const IMAGE_SMUGGLER = 'https://wsrv.nl/?url=';
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -17,7 +14,6 @@ const chapterSelect = document.getElementById('chapterSelect');
 
 let allChapters = [];
 let currentIndex = -1;
-let sourceEngine = 'mangadex'; 
 
 backBtn.addEventListener('click', () => {
     if (mangaId) window.location.href = `details.html?id=${mangaId}`;
@@ -31,53 +27,26 @@ async function loadReader() {
     if (cachedData) {
         const parsed = JSON.parse(cachedData);
         allChapters = parsed.chapters;
-        sourceEngine = parsed.source;
     }
 
     try {
         readerContainer.innerHTML = ''; 
-
-        if (sourceEngine === 'mangadex') {
-            const response = await fetch(`${API_BASE}/at-home/server/${chapterId}`);
-            const data = await response.json();
-            data.chapter.data.forEach(img => {
-                const imgEl = document.createElement('img');
-                imgEl.src = `${data.baseUrl}/data/${data.chapter.hash}/${img}`;
-                imgEl.className = 'reader-page';
-                imgEl.loading = 'lazy';
-                imgEl.setAttribute('referrerpolicy', 'no-referrer');
-                readerContainer.appendChild(imgEl);
-            });
-        } 
-        else if (sourceEngine === 'manganato') {
-            // 1. Decode the URL we saved earlier
-            const decodedUrl = atob(chapterId); 
-            
-            // 2. Fetch the raw HTML of the chapter page
-            const res = await fetch(`${HTML_PROXY}${encodeURIComponent(decodedUrl)}`);
-            const data = await res.json();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(data.contents, 'text/html');
-            
-            // 3. Rip the images from their container
-            const images = doc.querySelectorAll('.container-chapter-reader img');
-            images.forEach(img => {
-                const imgEl = document.createElement('img');
-                let rawSrc = img.src || img.getAttribute('data-src');
-                
-                // 4. Send the image through the smuggler to bypass their Hotlink blocker
-                imgEl.src = `${IMAGE_SMUGGLER}${encodeURIComponent(rawSrc)}&output=webp`;
-                imgEl.className = 'reader-page';
-                imgEl.loading = 'lazy';
-                imgEl.setAttribute('referrerpolicy', 'no-referrer');
-                readerContainer.appendChild(imgEl);
-            });
-        }
+        const response = await fetch(`${API_BASE}/at-home/server/${chapterId}`);
+        const data = await response.json();
+        
+        data.chapter.data.forEach(img => {
+            const imgEl = document.createElement('img');
+            imgEl.src = `${data.baseUrl}/data/${data.chapter.hash}/${img}`;
+            imgEl.className = 'reader-page';
+            imgEl.loading = 'lazy';
+            imgEl.setAttribute('referrerpolicy', 'no-referrer');
+            readerContainer.appendChild(imgEl);
+        });
 
         if (allChapters.length > 0) setupNavigation();
 
     } catch (error) {
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Extraction failed.</div>`;
+        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images.</div>`;
     }
 }
 
@@ -86,7 +55,16 @@ function setupNavigation() {
     currentIndex = allChapters.findIndex(c => c.id === chapterId);
     
     if (allChapters[currentIndex]) {
-        readerChapterTitle.innerText = allChapters[currentIndex].attributes.chapter ? `Chapter ${allChapters[currentIndex].attributes.chapter}` : 'Oneshot';
+        const currentChapNum = allChapters[currentIndex].attributes.chapter ? `Chapter ${allChapters[currentIndex].attributes.chapter}` : 'Oneshot';
+        readerChapterTitle.innerText = currentChapNum;
+
+        // SAVE PROGRESS TO LIBRARY
+        let library = JSON.parse(localStorage.getItem('nova_library')) || [];
+        let savedIndex = library.findIndex(m => m.id === mangaId);
+        if(savedIndex !== -1) {
+            library[savedIndex].lastReadChapterNum = allChapters[currentIndex].attributes.chapter || 'Oneshot';
+            localStorage.setItem('nova_library', JSON.stringify(library));
+        }
     }
 
     chapterSelect.innerHTML = allChapters.map((c, index) => {
