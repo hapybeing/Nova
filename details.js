@@ -1,7 +1,6 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-// THE NEW STEALTH PROXY - Bypasses CORS and basic Cloudflare
-const PROXY_URL = 'https://api.codetabs.com/v1/proxy?quest=';
+const CONSUMET_BASE = '/proxy/consumet/manga/mangakakalot'; // The Mercenary API
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -21,11 +20,6 @@ function sanitizeTitleForSearch(title) {
     return title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim();
 }
 
-// Formats the title perfectly for MangaKakalot's search engine
-function makeSlug(title) {
-    return title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
-}
-
 async function loadMangaDetails() {
     if (!mangaId) {
         detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">No Manga Selected.</div>`;
@@ -33,7 +27,6 @@ async function loadMangaDetails() {
     }
 
     try {
-        // --- 1. FETCH PREMIUM UI METADATA FROM MANGADEX ---
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         if (!infoResponse.ok) throw new Error('Failed to load manga data');
         const infoData = await infoResponse.json();
@@ -41,9 +34,8 @@ async function loadMangaDetails() {
 
         let chapters = [];
         let source = 'mangadex';
-        const cleanTitle = sanitizeTitleForSearch(getTitle(manga.attributes));
 
-        // --- 2. TRY MANGADEX CHAPTERS ---
+        // 1. TRY MANGADEX
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         if (feedResponse.ok) {
             const feedData = await feedResponse.json();
@@ -57,51 +49,37 @@ async function loadMangaDetails() {
             });
         }
 
-        // --- 3. THE BRUTE-FORCE MANGAKAKALOT HEIST ---
+        // 2. THE CONSUMET WARRIOR FALLBACK
         if (chapters.length === 0) {
-            console.log(`Engaging Brute-Force Extraction for: ${cleanTitle}`);
+            const cleanTitle = sanitizeTitleForSearch(getTitle(manga.attributes));
+            console.log(`Calling Consumet API for: ${cleanTitle}`);
+            
             try {
-                const searchSlug = makeSlug(cleanTitle);
-                const searchUrl = `https://mangakakalot.com/search/story/${searchSlug}`;
+                // Ask Consumet to search MangaKakalot
+                const searchRes = await fetch(`${CONSUMET_BASE}/${encodeURIComponent(cleanTitle)}`);
+                const searchData = await searchRes.json();
                 
-                // Fetch the search page HTML through our stealth proxy
-                const searchRes = await fetch(`${PROXY_URL}${encodeURIComponent(searchUrl)}`);
-                const searchHtml = await searchRes.text();
-                const parser = new DOMParser();
-                const searchDoc = parser.parseFromString(searchHtml, 'text/html');
-                
-                // Find the first manga result link
-                const firstResult = searchDoc.querySelector('.story_name a');
-                
-                if (firstResult) {
-                    const mangaUrl = firstResult.href;
+                if (searchData && searchData.results && searchData.results.length > 0) {
+                    const targetId = searchData.results[0].id;
                     
-                    // Fetch the actual manga page HTML
-                    const mangaRes = await fetch(`${PROXY_URL}${encodeURIComponent(mangaUrl)}`);
-                    const mangaHtml = await mangaRes.text();
-                    const mangaDoc = parser.parseFromString(mangaHtml, 'text/html');
+                    // Ask Consumet to extract the chapters
+                    const infoRes = await fetch(`${CONSUMET_BASE}/info?id=${targetId}`);
+                    const infoData = await infoRes.json();
                     
-                    // Extract all chapters instantly
-                    const chapterNodes = mangaDoc.querySelectorAll('.chapter-list .row span a');
-                    if (chapterNodes.length > 0) {
-                        chapters = Array.from(chapterNodes).map(node => {
-                            let chapText = node.textContent.replace(/Chapter/i, '').trim();
-                            return {
-                                id: btoa(node.href), // Securely encode the raw URL for the reader
-                                attributes: { chapter: chapText, title: '' }
-                            };
-                        });
-                        source = 'mangakakalot';
+                    if (infoData.chapters && infoData.chapters.length > 0) {
+                        chapters = infoData.chapters.map(c => ({
+                            id: c.id, 
+                            attributes: { chapter: c.title.replace(/Chapter/i, '').trim(), title: '' }
+                        }));
+                        source = 'consumet';
                     }
                 }
             } catch (e) {
-                console.error("MangaKakalot Extraction Failed.", e);
+                console.error("Consumet Warriors Failed.", e);
             }
         }
 
-        // SAVE TO LOCAL MEMORY FOR INSTANT READER LOAD
         sessionStorage.setItem(`nova_chapters_${mangaId}`, JSON.stringify({ chapters, source }));
-
         renderDetails(manga, chapters, source);
     } catch (error) {
         detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">Network Error. Please refresh.</div>`;
@@ -135,22 +113,18 @@ function renderDetails(manga, chapters, source) {
         chaptersHTML = `
             <div class="loading-state" style="text-align: left; padding: 2.5rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--glass-border);">
                 <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">Extraction Failed</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">Our scrapers were blocked by Cloudflare. Try again later.</p>
+                <p style="color: var(--text-secondary); line-height: 1.6;">Our warrior APIs are currently at capacity. Try again later.</p>
             </div>
         `;
     } else {
         chaptersHTML = chapters.map(chapter => {
             const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
-            const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
-            
-            // Clean URL. No badges. No sources.
             const readerUrl = `reader.html?id=${mangaId}&chapterId=${chapter.id}`;
             
             return `
                 <div class="chapter-card" onclick="window.location.href='${readerUrl}'">
                     <div>
                         <div class="chapter-number">${chapNum}</div>
-                        <div class="chapter-title">${chapTitle}</div>
                     </div>
                     <i class="ph ph-book-open" style="color: var(--text-secondary); font-size: 1.2rem;"></i>
                 </div>
