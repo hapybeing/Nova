@@ -29,7 +29,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK: Action and Isekai fixed
+// GENRE FIX: Unrestricted Content Ratings
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -42,9 +42,9 @@ genreLinks.forEach(link => {
         searchResultsGrid.innerHTML = '<div class="loading-state">Syncing database...</div>';
 
         try {
-            // "suggestive" added to allow Isekai to populate!
-            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[followedCount]=desc`;
+            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
+            if (!response.ok) throw new Error("API Block");
             const data = await response.json();
             renderMangaCards(data.data, searchResultsGrid);
         } catch (error) {
@@ -81,7 +81,6 @@ searchInput.addEventListener('input', (e) => {
                 
                 const item = document.createElement('div');
                 item.className = 'dropdown-item';
-                // Cache buster appended to URL
                 item.innerHTML = `
                     <img src="${coverUrl}" alt="cover" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
                     <div class="dropdown-info">
@@ -89,7 +88,7 @@ searchInput.addEventListener('input', (e) => {
                         <span class="dropdown-meta" style="text-transform: capitalize;">${status}</span>
                     </div>
                 `;
-                item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}&v=4`; });
+                item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
                 searchDropdown.appendChild(item);
             });
         } catch (error) {
@@ -162,8 +161,7 @@ function renderMangaCards(mangaList, container) {
 
             const card = document.createElement('div');
             card.className = 'manga-card';
-            // Cache buster appended to URL
-            card.onclick = () => { window.location.href = `details.html?id=${manga.id}&v=4`; };
+            card.onclick = () => { window.location.href = `details.html?id=${manga.id}`; };
             card.innerHTML = `
                 <div class="cover-wrapper">
                     <img src="${coverUrl}" alt="cover" loading="lazy" referrerpolicy="no-referrer">
