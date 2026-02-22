@@ -30,7 +30,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// FIX: Adventure Tab
+// Fixed Discover Logic (Works with Isekai now)
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -43,7 +43,7 @@ genreLinks.forEach(link => {
         searchResultsGrid.innerHTML = '<div class="loading-state">Fetching titles...</div>';
 
         try {
-            // contentRating is removed here so Action/Adventure titles populate!
+            // Removed contentRating=safe filter so action/isekai works
             const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
             const data = await response.json();
@@ -82,6 +82,7 @@ searchInput.addEventListener('input', (e) => {
                 
                 const item = document.createElement('div');
                 item.className = 'dropdown-item';
+                // CACHE BUSTER for reader transition
                 item.innerHTML = `
                     <img src="${coverUrl}" alt="cover" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
                     <div class="dropdown-info">
@@ -89,7 +90,7 @@ searchInput.addEventListener('input', (e) => {
                         <span class="dropdown-meta" style="text-transform: capitalize;">${status}</span>
                     </div>
                 `;
-                item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
+                item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}&v=2`; });
                 searchDropdown.appendChild(item);
             });
         } catch (error) {
@@ -152,7 +153,6 @@ function renderMangaCards(mangaList, container) {
         try {
             const title = getTitle(manga.attributes);
             const coverUrl = getCoverUrl(manga.id, manga.relationships);
-            
             let genre = 'Ongoing';
             if (manga.attributes?.tags) {
                 const genreTag = manga.attributes.tags.find(tag => tag.attributes?.group === 'genre');
@@ -161,7 +161,8 @@ function renderMangaCards(mangaList, container) {
 
             const card = document.createElement('div');
             card.className = 'manga-card';
-            card.onclick = () => { window.location.href = `details.html?id=${manga.id}`; };
+            // CACHE BUSTER on click
+            card.onclick = () => { window.location.href = `details.html?id=${manga.id}&v=2`; };
             card.innerHTML = `
                 <div class="cover-wrapper">
                     <img src="${coverUrl}" alt="cover" loading="lazy" referrerpolicy="no-referrer">
