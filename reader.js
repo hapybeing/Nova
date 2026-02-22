@@ -1,5 +1,5 @@
 const API_BASE = '/proxy/api';
-const COMICK_API = 'https://api.comick.io'; // Client-side direct fetch!
+const COMICK_API = 'https://api.comick.io'; 
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -48,7 +48,6 @@ async function loadReader() {
             });
         } 
         else if (sourceEngine === 'comick') {
-            // Fetch images directly, bypassing ISP and Vercel blocks entirely
             const response = await fetch(`${COMICK_API}/chapter/${chapterId}`);
             const data = await response.json();
             data.chapter.images.forEach(img => {
@@ -64,7 +63,7 @@ async function loadReader() {
         if (allChapters.length > 0) setupNavigation();
 
     } catch (error) {
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images.</div>`;
+        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Connection failed.</div>`;
     }
 }
 
