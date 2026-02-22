@@ -9,8 +9,8 @@
       "destination": "https://uploads.mangadex.org/:match*"
     },
     {
-      "source": "/proxy/comick/:match*",
-      "destination": "https://api.comick.io/:match*"
+      "source": "/proxy/consumet/:match*",
+      "destination": "https://api.consumet.org/:match*"
     }
   ]
 }
