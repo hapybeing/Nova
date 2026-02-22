@@ -21,18 +21,6 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .nav-links a { color: var(--text-secondary); text-decoration: none; margin-left: 2rem; font-weight: 500; transition: color 0.3s ease; display: flex; align-items: center; gap: 0.3rem; }
 .nav-links a.active, .nav-links a:hover { color: var(--text-primary); }
 
-/* Dropdown Menu */
-.dropdown-wrapper { position: relative; display: inline-block; }
-.nav-dropdown {
-    position: absolute; top: 150%; left: 50%; transform: translateX(-50%) translateY(10px);
-    background: #000000; border: 2px solid var(--accent); border-radius: 12px;
-    min-width: 200px; opacity: 0; visibility: hidden; transition: all 0.2s ease;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.9); display: flex; flex-direction: column; overflow: hidden;
-}
-.dropdown-wrapper:hover .nav-dropdown { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
-.nav-dropdown a { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: block; text-align: center; margin: 0; }
-.nav-dropdown a:hover { background: var(--accent); color: #fff; }
-
 /* Hero */
 .hero { position: relative; z-index: 100; min-height: 60vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8rem 2rem 4rem; overflow: hidden; }
 .glow-orb { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60vw; height: 60vw; background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); z-index: -1; filter: blur(60px); }
@@ -41,17 +29,15 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .accent-text { color: var(--accent); }
 .hero-subtitle { color: var(--text-secondary); font-size: clamp(1rem, 2vw, 1.25rem); max-width: 600px; margin: 0 auto 3rem; }
 
-/* FIXED: Search Bar & Dropdown */
+/* Search UI */
 .search-container { position: relative; max-width: 600px; margin: 0 auto; text-align: left; z-index: 9999; }
 .search-container i.ph-magnifying-glass { position: absolute; left: 1.5rem; top: 1.2rem; color: var(--text-secondary); font-size: 1.2rem; z-index: 2; }
 .search-container input { width: 100%; padding: 1.2rem 1.5rem 1.2rem 3.5rem; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: 100px; color: var(--text-primary); font-size: 1rem; font-family: inherit; outline: none; }
 .search-container input:focus { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 
 .search-dropdown { 
-    position: absolute; top: calc(100% + 8px); left: 0; right: 0; 
-    background: #000000; /* Solid Black */
-    border: 2px solid var(--accent); /* Thick Purple Border */
-    border-radius: 16px; z-index: 10000; 
+    position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: #000000; 
+    border: 2px solid var(--accent); border-radius: 16px; z-index: 10000; 
     box-shadow: 0 20px 40px rgba(0,0,0,1); max-height: 350px; overflow-y: auto; 
 }
 .search-dropdown::-webkit-scrollbar { width: 6px; }
@@ -64,8 +50,22 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .dropdown-meta { font-size: 0.75rem; color: var(--text-secondary); text-transform: capitalize; }
 .dropdown-msg { padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.9rem; }
 
+/* THE NEW DISCOVER PILLS UI */
+.genre-container {
+    display: flex; gap: 1rem; padding: 0 2rem 2.5rem 2rem; overflow-x: auto;
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.genre-container::-webkit-scrollbar { display: none; }
+.genre-pill {
+    background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--glass-border);
+    padding: 0.8rem 1.5rem; border-radius: 100px; font-family: inherit; font-weight: 600;
+    font-size: 0.95rem; cursor: pointer; white-space: nowrap; transition: all 0.2s ease;
+    scroll-snap-align: start; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.genre-pill:hover { background: var(--accent); border-color: var(--accent); transform: translateY(-2px); }
+
 /* Grid Layouts */
-.discover-section { max-width: 1400px; margin: 0 auto; padding: 0 0 4rem 0; position: relative; z-index: 1; }
+.discover-section { position: relative; z-index: 10; max-width: 1400px; margin: 0 auto; padding: 0 0 4rem 0; }
 .carousel-section, #searchResultsSection { margin-bottom: 4rem; }
 .section-header { display: flex; justify-content: space-between; align-items: center; padding: 0 2rem; margin-bottom: 1.5rem; }
 .section-header h2 { font-size: 1.5rem; font-weight: 700; }
@@ -79,11 +79,8 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .manga-grid .manga-card { flex: none; width: 100%; }
 .manga-card:hover { transform: translateY(-6px); }
 
-/* BRUTE FORCE COVERS: Hardcoded pixel heights. Cannot be broken. */
 .cover-wrapper { 
-    width: 100%; 
-    height: 240px; 
-    border-radius: 10px; background: var(--bg-surface); margin-bottom: 0.75rem; 
+    width: 100%; height: 240px; border-radius: 10px; background: var(--bg-surface); margin-bottom: 0.75rem; 
     box-shadow: 0 10px 20px rgba(0,0,0,0.5); overflow: hidden;
 }
 .cover-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
@@ -93,7 +90,7 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .manga-tags { font-size: 0.75rem; color: var(--text-secondary); }
 .loading-state { grid-column: 1 / -1; width: 100%; text-align: center; padding: 2rem; color: var(--text-secondary); }
 
-/* Details Page */
+/* Details & Reader */
 .details-container { max-width: 1200px; margin: 8rem auto 3rem; padding: 0 2rem; display: flex; gap: 3rem; }
 .details-cover { flex: 0 0 260px; }
 .details-cover img { width: 100%; height: 380px; object-fit: cover; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
@@ -111,7 +108,6 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 .chapter-number { font-weight: 700; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.2rem; }
 .chapter-title { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
 
-/* Reader Page */
 .reader-body { background-color: #000000; }
 .reader-nav { position: fixed; top: 0; width: 100%; z-index: 1000; background: var(--glass-bg); backdrop-filter: blur(16px); border-bottom: 1px solid var(--glass-border); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
 .reader-back-btn { background: none; border: none; color: var(--text-primary); font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
@@ -126,7 +122,7 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 
 @media (max-width: 768px) {
     .manga-card { flex: 0 0 130px; }
-    .cover-wrapper { height: 200px; } /* Mobile hardcoded height */
+    .cover-wrapper { height: 200px; } 
     .details-container { flex-direction: column; margin-top: 6rem; gap: 2rem; }
     .details-cover { flex: 0 0 auto; max-width: 220px; margin: 0 auto; width: 100%; }
     .details-title, .details-author { text-align: center; }
