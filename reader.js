@@ -1,5 +1,5 @@
-const API_BASE = '/proxy/api';
-const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+const API_BASE = 'https://corsproxy.io/?https://api.mangadex.org';
+const COMICK_API = 'https://corsproxy.io/?https://api.comick.io';
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -21,13 +21,6 @@ backBtn.addEventListener('click', () => {
     if (mangaId) window.location.href = `details.html?id=${mangaId}`;
     else window.history.back();
 });
-
-async function fetchAggregator(url) {
-    const proxyUrl = CORS_PROXY + encodeURIComponent(url);
-    const response = await fetch(proxyUrl);
-    const data = await response.json();
-    return JSON.parse(data.contents);
-}
 
 async function loadReader() {
     if (!chapterId || !mangaId) return;
@@ -55,9 +48,9 @@ async function loadReader() {
             });
         } 
         else if (sourceEngine === 'comick') {
-            // Using proxy to safely bypass browser blocks for image lists
-            const chapUrl = `https://api.comick.io/chapter/${chapterId}`;
-            const data = await fetchAggregator(chapUrl);
+            // Tunnel retrieves the data, bypassing CORS
+            const response = await fetch(`${COMICK_API}/chapter/${chapterId}`);
+            const data = await response.json();
             
             data.chapter.images.forEach(img => {
                 const imgEl = document.createElement('img');
@@ -72,7 +65,7 @@ async function loadReader() {
         if (allChapters.length > 0) setupNavigation();
 
     } catch (error) {
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images.</div>`;
+        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images from secure tunnel.</div>`;
     }
 }
 
@@ -104,3 +97,4 @@ function setupNavigation() {
 }
 
 document.addEventListener('DOMContentLoaded', loadReader);
+
