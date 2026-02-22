@@ -1,7 +1,5 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-// The ultimate raw HTML smuggler
-const HTML_PROXY = 'https://api.allorigins.win/get?url=';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -16,23 +14,22 @@ function getTitle(attributes) {
     return attributes.title ? (attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title') : 'Unknown Title';
 }
 
-function cleanTitleForManganato(title) {
-    // Manganato uses underscores for spaces in their search URLs
-    return title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
-}
-
 async function loadMangaDetails() {
-    if (!mangaId) return;
+    if (!mangaId) {
+        detailsMain.innerHTML = `<div class="loading-state">No Manga Selected.</div>`;
+        return;
+    }
 
     try {
+        // Fetch Metadata
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         const infoData = await infoResponse.json();
         const manga = infoData.data;
 
         let chapters = [];
         let source = 'mangadex';
-        const searchTitle = cleanTitleForManganato(getTitle(manga.attributes));
 
+        // Fetch MangaDex Chapters
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         if (feedResponse.ok) {
             const feedData = await feedResponse.json();
@@ -46,49 +43,7 @@ async function loadMangaDetails() {
             });
         }
 
-        // THE RAW DOM HEIST (Manganato)
-        if (chapters.length === 0) {
-            console.log("MangaDex empty. Raiding Manganato HTML for:", searchTitle);
-            try {
-                // 1. Search Manganato
-                const searchUrl = `https://manganato.com/search/story/${searchTitle}`;
-                const proxySearch = await fetch(`${HTML_PROXY}${encodeURIComponent(searchUrl)}`);
-                const searchData = await proxySearch.json();
-                
-                const parser = new DOMParser();
-                const searchDoc = parser.parseFromString(searchData.contents, 'text/html');
-                
-                // Find the first manga link on their site
-                const firstResult = searchDoc.querySelector('.search-story-item a.item-title');
-                
-                if (firstResult) {
-                    const mangaUrl = firstResult.href;
-                    
-                    // 2. Load the actual manga page
-                    const proxyManga = await fetch(`${HTML_PROXY}${encodeURIComponent(mangaUrl)}`);
-                    const mangaPageData = await proxyManga.json();
-                    const mangaDoc = parser.parseFromString(mangaPageData.contents, 'text/html');
-                    
-                    // 3. Slice out the chapters
-                    const chapterNodes = mangaDoc.querySelectorAll('.row-content-chapter li a.chapter-name');
-                    
-                    if (chapterNodes.length > 0) {
-                        chapters = Array.from(chapterNodes).map(node => {
-                            let chapText = node.textContent.replace(/Chapter/i, '').trim();
-                            return {
-                                // We base64 encode their website link to safely pass it to our reader
-                                id: btoa(node.href), 
-                                attributes: { chapter: chapText, title: '' }
-                            };
-                        });
-                        source = 'manganato';
-                    }
-                }
-            } catch (e) {
-                console.error("Manganato Heist failed.", e);
-            }
-        }
-
+        // Cache the safe MangaDex data
         sessionStorage.setItem(`nova_chapters_${mangaId}`, JSON.stringify({ chapters, source }));
         renderDetails(manga, chapters);
 
@@ -120,20 +75,28 @@ function renderDetails(manga, chapters) {
     if (authorRel && authorRel.attributes && authorRel.attributes.name) authorName = authorRel.attributes.name;
 
     let chaptersHTML = '';
+    
+    // THE GRACEFUL FALLBACK UI
     if (chapters.length === 0) {
         chaptersHTML = `
-            <div class="loading-state" style="text-align: left; padding: 2.5rem; background: #18181b; border-radius: 16px; border: 1px solid var(--glass-border);">
-                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Available</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">Translators are currently working on this title. Chapters will appear here once available.</p>
+            <div class="loading-state" style="text-align: center; padding: 3rem 2rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--glass-border);">
+                <i class="ph ph-lock-key" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Found</h3>
+                <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">This title is highly protected by official publishers or currently has no English scanlations on MangaDex.</p>
+                <a href="https://google.com/search?q=read+${encodeURIComponent(title)}+manga+online" target="_blank" style="background: var(--accent); color: #fff; padding: 0.8rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: all 0.2s;">
+                    Search Web for Chapters <i class="ph ph-arrow-square-out" style="margin-left: 5px;"></i>
+                </a>
             </div>
         `;
     } else {
         chaptersHTML = chapters.map(chapter => {
             const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
+            const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
             return `
                 <div class="chapter-card" onclick="window.location.href='reader.html?id=${mangaId}&chapterId=${chapter.id}'">
                     <div>
                         <div class="chapter-number">${chapNum}</div>
+                        <div class="chapter-title">${chapTitle}</div>
                     </div>
                     <i class="ph ph-book-open" style="color: var(--text-secondary); font-size: 1.2rem;"></i>
                 </div>
