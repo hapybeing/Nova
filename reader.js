@@ -1,5 +1,5 @@
 const API_BASE = '/proxy/api';
-const CONSUMET_BASE = '/proxy/consumet/manga/mangakakalot';
+const COMICK_BASE = '/proxy/comick'; 
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -23,8 +23,8 @@ backBtn.addEventListener('click', () => {
 });
 
 async function loadReader() {
-    if (!chapterId || !mangaId) {
-        readerContainer.innerHTML = `<div class="loading-state">Invalid Chapter Data.</div>`;
+    if (!chapterId) {
+        readerContainer.innerHTML = `<div class="loading-state">Invalid Chapter.</div>`;
         return;
     }
 
@@ -40,9 +40,7 @@ async function loadReader() {
 
         if (sourceEngine === 'mangadex') {
             const response = await fetch(`${API_BASE}/at-home/server/${chapterId}`);
-            if (!response.ok) throw new Error('Image server failed');
             const data = await response.json();
-            
             data.chapter.data.forEach(img => {
                 const imgEl = document.createElement('img');
                 imgEl.src = `${data.baseUrl}/data/${data.chapter.hash}/${img}`;
@@ -52,15 +50,12 @@ async function loadReader() {
                 readerContainer.appendChild(imgEl);
             });
         } 
-        else if (sourceEngine === 'consumet') {
-            // Ask Consumet for the image pages
-            const response = await fetch(`${CONSUMET_BASE}/read?chapterId=${chapterId}`);
-            if (!response.ok) throw new Error('Consumet server failed');
+        else if (sourceEngine === 'comick') {
+            const response = await fetch(`${COMICK_BASE}/chapter/${chapterId}`);
             const data = await response.json();
-            
-            data.forEach(img => {
+            data.chapter.images.forEach(img => {
                 const imgEl = document.createElement('img');
-                imgEl.src = img.img; 
+                imgEl.src = img.url; 
                 imgEl.className = 'reader-page';
                 imgEl.loading = 'lazy';
                 imgEl.setAttribute('referrerpolicy', 'no-referrer');
@@ -68,13 +63,10 @@ async function loadReader() {
             });
         }
 
-        if (allChapters.length > 0) {
-            setupNavigation();
-        }
+        if (allChapters.length > 0) setupNavigation();
 
     } catch (error) {
-        console.error(error);
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Extraction failed.</div>`;
+        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images.</div>`;
     }
 }
 
@@ -82,9 +74,8 @@ function setupNavigation() {
     readerControls.style.display = 'flex';
     currentIndex = allChapters.findIndex(c => c.id === chapterId);
     
-    const currentChap = allChapters[currentIndex];
-    if (currentChap) {
-        readerChapterTitle.innerText = currentChap.attributes.chapter ? `Chapter ${currentChap.attributes.chapter}` : 'Oneshot';
+    if (allChapters[currentIndex]) {
+        readerChapterTitle.innerText = allChapters[currentIndex].attributes.chapter ? `Chapter ${allChapters[currentIndex].attributes.chapter}` : 'Oneshot';
     }
 
     chapterSelect.innerHTML = allChapters.map((c, index) => {
