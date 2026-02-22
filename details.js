@@ -1,7 +1,6 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-// BYPASSING VERCEL entirely. Hitting directly from the user's tablet.
-const COMICK_DIRECT_API = 'https://api.comick.io'; 
+const COMICK_API = 'https://api.comick.io'; // Client-side direct fetch!
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -13,19 +12,22 @@ function getTitle(attributes) {
         const enTitleObj = attributes.altTitles.find(t => t.en);
         if (enTitleObj) return enTitleObj.en;
     }
-    if (attributes.title) return attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title';
-    return 'Unknown Title';
+    return attributes.title ? (attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title') : 'Unknown Title';
 }
 
-function cleanTitleForAggregator(title) {
+// Cleans up the title perfectly so the aggregator doesn't get confused
+function cleanTitle(title) {
     return title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim();
 }
 
 async function loadMangaDetails() {
-    if (!mangaId) return;
+    if (!mangaId) {
+        detailsMain.innerHTML = `<div class="loading-state">No Manga Selected.</div>`;
+        return;
+    }
 
     try {
-        // 1. GET METADATA
+        // 1. GET PREMIUM METADATA
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         const infoData = await infoResponse.json();
         const manga = infoData.data;
@@ -33,9 +35,9 @@ async function loadMangaDetails() {
         let chapters = [];
         let source = 'mangadex';
         let comicSlug = null;
-        const cleanTitle = cleanTitleForAggregator(getTitle(manga.attributes));
+        const searchTitle = cleanTitle(getTitle(manga.attributes));
 
-        // 2. CHECK MANGADEX FIRST
+        // 2. CHECK MANGADEX CHAPTERS
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         if (feedResponse.ok) {
             const feedData = await feedResponse.json();
@@ -49,18 +51,19 @@ async function loadMangaDetails() {
             });
         }
 
-        // 3. THE CLIENT-SIDE AGGREGATOR FALLBACK (Unblockable)
+        // 3. THE STEALTH NINJA FALLBACK (Client-Side Aggregator)
         if (chapters.length === 0) {
+            console.log("Engaging stealth scraper for:", searchTitle);
             try {
-                // Hitting the open API directly from your tablet!
-                const searchRes = await fetch(`${COMICK_DIRECT_API}/v1.0/search?q=${encodeURIComponent(cleanTitle)}&limit=1`);
+                // Fetch directly from tablet, bypassing Vercel Cloudflare blocks
+                const searchRes = await fetch(`${COMICK_API}/v1.0/search?q=${encodeURIComponent(searchTitle)}&limit=1`);
                 if (searchRes.ok) {
                     const searchData = await searchRes.json();
                     if (searchData && searchData.length > 0) {
                         comicSlug = searchData[0].slug;
                         
-                        // Pull up to 9999 chapters
-                        const chapRes = await fetch(`${COMICK_DIRECT_API}/comic/${comicSlug}/chapters?lang=en&limit=9999`);
+                        // Extract all chapters instantly
+                        const chapRes = await fetch(`${COMICK_API}/comic/${comicSlug}/chapters?lang=en&limit=9999`);
                         if (chapRes.ok) {
                             const chapData = await chapRes.json();
                             if (chapData.chapters && chapData.chapters.length > 0) {
@@ -80,16 +83,16 @@ async function loadMangaDetails() {
                     }
                 }
             } catch (e) {
-                console.warn("Aggregator connection failed.");
+                console.warn("Stealth scrape failed.");
             }
         }
 
-        // Cache for the reader
+        // Cache for instant reading
         sessionStorage.setItem(`nova_chapters_${mangaId}`, JSON.stringify({ chapters, source, comicSlug }));
         renderDetails(manga, chapters);
 
     } catch (error) {
-        detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444;">Network Error.</div>`;
+        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Network Error. Trying to reconnect...</div>`;
     }
 }
 
@@ -119,18 +122,16 @@ function renderDetails(manga, chapters) {
     if (chapters.length === 0) {
         chaptersHTML = `
             <div class="loading-state" style="text-align: left; padding: 2.5rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--glass-border);">
-                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Available</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">Translators are currently working on this title. Chapters will appear here once available.</p>
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">Check Back Later</h3>
+                <p style="color: var(--text-secondary); line-height: 1.6;">Translators are currently working on this title. Chapters will appear here once they hit the open network.</p>
             </div>
         `;
     } else {
         chaptersHTML = chapters.map(chapter => {
             const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
             const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
-            const readerUrl = `reader.html?id=${mangaId}&chapterId=${chapter.id}&v=2`;
-            
             return `
-                <div class="chapter-card" onclick="window.location.href='${readerUrl}'">
+                <div class="chapter-card" onclick="window.location.href='reader.html?id=${mangaId}&chapterId=${chapter.id}'">
                     <div>
                         <div class="chapter-number">${chapNum}</div>
                         <div class="chapter-title">${chapTitle}</div>
@@ -141,9 +142,7 @@ function renderDetails(manga, chapters) {
         }).join('');
     }
 
-    // Notice we inject the cache-buster ?v=2 into the CSS link dynamically too, just in case
     detailsMain.innerHTML = `
-        <style>@import url('styles.css?v=2');</style>
         <div class="details-container">
             <div class="details-cover">
                 <img src="${coverUrl}" alt="cover" referrerpolicy="no-referrer">
