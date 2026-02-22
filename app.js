@@ -8,7 +8,6 @@ const searchResultsGrid = document.getElementById('searchResultsGrid');
 const searchHeading = document.getElementById('searchHeading');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const carousels = document.querySelectorAll('.carousel-section');
-// Updated to listen for clicks on the new pill buttons
 const genreLinks = document.querySelectorAll('.genre-pill');
 
 let searchTimeout; 
@@ -30,7 +29,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK: The Strict Chapter Filter
+// GENRE CLICK: Fetches category data
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -43,8 +42,7 @@ genreLinks.forEach(link => {
         searchResultsGrid.innerHTML = '<div class="loading-state">Syncing secure database...</div>';
 
         try {
-            // THE FIX: hasAvailableChapters=true forces it to ONLY return manga we actually host
-            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&hasAvailableChapters=true&includes[]=cover_art&order[followedCount]=desc`;
+            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=35&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&hasAvailableChapters=true&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
             if (!response.ok) throw new Error("API Blocked");
             const data = await response.json();
@@ -55,7 +53,7 @@ genreLinks.forEach(link => {
     });
 });
 
-// SEARCH: Kept broad so users can find highly licensed titles and use the "Search Web" fallback
+// LIVE SEARCH: Kept broad so users can still look up official titles
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -67,7 +65,7 @@ searchInput.addEventListener('input', (e) => {
 
     searchTimeout = setTimeout(async () => {
         try {
-            const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=5&includes[]=cover_art&order[relevance]=desc`;
+            const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=6&includes[]=cover_art&order[relevance]=desc`;
             const response = await fetch(url);
             const data = await response.json();
             
@@ -112,10 +110,10 @@ searchInput.addEventListener('keypress', async (e) => {
             searchInput.blur(); 
 
             try {
-                const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[relevance]=desc`;
+                const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=30&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[relevance]=desc`;
                 const response = await fetch(url);
                 const data = await response.json();
-                renderMangaCards(data.data, searchResultsGrid);
+                renderMangaCards(data.data, searchResultsGrid, false); // No strict filter on explicit searches
             } catch (error) {
                 searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Search failed.</div>`;
             }
@@ -136,11 +134,11 @@ clearSearchBtn.addEventListener('click', () => {
     carousels.forEach(c => c.classList.remove('hidden'));
 });
 
-// CAROUSELS: The Strict Chapter Filter Applied Here Too
+// CAROUSELS
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
     try {
-        const url = `${API_BASE}/manga?limit=15&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&hasAvailableChapters=true&includes[]=cover_art&${queryParams}`;
+        const url = `${API_BASE}/manga?limit=35&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&hasAvailableChapters=true&includes[]=cover_art&${queryParams}`;
         const response = await fetch(url);
         const data = await response.json();
         renderMangaCards(data.data, container);
@@ -149,12 +147,26 @@ async function fetchCarouselData(containerId, queryParams) {
     }
 }
 
-function renderMangaCards(mangaList, container) {
+// THE RENDER ENGINE WITH THE SMART FILTER
+function renderMangaCards(mangaList, container, applyStrictFilter = true) {
     container.innerHTML = ''; 
-    if (!mangaList || mangaList.length === 0) return;
+    if (!mangaList || mangaList.length === 0) {
+        container.innerHTML = `<div class="loading-state">No readable titles found in this category.</div>`;
+        return;
+    }
     
+    let renderedCount = 0;
+
     mangaList.forEach(manga => {
         try {
+            // THE SMART FILTER: Skips rendering highly-licensed/DMCA'd titles (Official English Links)
+            if (applyStrictFilter && manga.attributes?.links?.engtl) {
+                return; 
+            }
+
+            // Cap the rendering to 15 items so the UI stays clean even if we fetched 35
+            if (renderedCount >= 15 && container.classList.contains('carousel-container')) return;
+
             const title = getTitle(manga.attributes);
             const coverUrl = getCoverUrl(manga.id, manga.relationships);
             let genre = 'Ongoing';
@@ -174,8 +186,13 @@ function renderMangaCards(mangaList, container) {
                 <p class="manga-tags">${genre}</p>
             `;
             container.appendChild(card);
+            renderedCount++;
         } catch (err) {}
     });
+
+    if (renderedCount === 0) {
+        container.innerHTML = `<div class="loading-state">All top titles in this category are officially licensed and unavailable.</div>`;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
