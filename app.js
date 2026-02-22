@@ -29,7 +29,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE FIX: Unrestricted Content Ratings
+// GENRE CLICK: Safely fetching Isekai without triggering API blocks
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -39,16 +39,17 @@ genreLinks.forEach(link => {
         carousels.forEach(c => c.classList.add('hidden'));
         searchResultsSection.classList.remove('hidden');
         searchHeading.innerText = `Top ${genreName}`;
-        searchResultsGrid.innerHTML = '<div class="loading-state">Syncing database...</div>';
+        searchResultsGrid.innerHTML = '<div class="loading-state">Fetching database...</div>';
 
         try {
-            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includes[]=cover_art&order[followedCount]=desc`;
+            // Suggestive is allowed, but Erotica is removed to prevent 403 Forbidden crash
+            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
-            if (!response.ok) throw new Error("API Block");
+            if (!response.ok) throw new Error("API Blocked");
             const data = await response.json();
             renderMangaCards(data.data, searchResultsGrid);
         } catch (error) {
-            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load genre.</div>`;
+            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Connection failed. Check network.</div>`;
         }
     });
 });
