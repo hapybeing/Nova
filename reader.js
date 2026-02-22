@@ -5,7 +5,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
 const mangaId = urlParams.get('id');
 const source = urlParams.get('source') || 'mangadex';
-const comicHid = urlParams.get('comicHid'); // Used if source is comick
+const comicSlug = urlParams.get('comicSlug'); // Fetching the new slug parameter
 
 const readerContainer = document.getElementById('readerContainer');
 const readerChapterTitle = document.getElementById('readerChapterTitle');
@@ -30,10 +30,9 @@ async function loadReader() {
     }
 
     try {
-        readerContainer.innerHTML = ''; // Clear loading text
+        readerContainer.innerHTML = ''; 
 
         if (source === 'mangadex') {
-            // -- MANGADEX IMAGE FETCH --
             const response = await fetch(`${API_BASE}/at-home/server/${chapterId}`);
             if (!response.ok) throw new Error('Image server failed');
             const data = await response.json();
@@ -48,14 +47,13 @@ async function loadReader() {
             });
         } 
         else if (source === 'comick') {
-            // -- COMICK IMAGE FETCH --
             const response = await fetch(`${COMICK_BASE}/chapter/${chapterId}`);
             if (!response.ok) throw new Error('ComicK server failed');
             const data = await response.json();
             
             data.chapter.images.forEach(img => {
                 const imgEl = document.createElement('img');
-                imgEl.src = img.url; // ComicK provides direct high-res URLs
+                imgEl.src = img.url; 
                 imgEl.className = 'reader-page';
                 imgEl.loading = 'lazy';
                 imgEl.setAttribute('referrerpolicy', 'no-referrer');
@@ -63,7 +61,6 @@ async function loadReader() {
             });
         }
 
-        // Setup Navigation after images load
         if (mangaId) setupNavigation();
 
     } catch (error) {
@@ -87,7 +84,8 @@ async function setupNavigation() {
             });
         } 
         else if (source === 'comick') {
-            const feedRes = await fetch(`${COMICK_BASE}/comic/${comicHid}/chapters?lang=en&limit=500`);
+            // Uncapped limit to match details page so all chapters appear in dropdown
+            const feedRes = await fetch(`${COMICK_BASE}/comic/${comicSlug}/chapters?lang=en&limit=9999`);
             const feedData = await feedRes.json();
             const seen = new Set();
             allChapters = feedData.chapters.filter(c => {
@@ -115,7 +113,7 @@ async function setupNavigation() {
                 return `<option value="${c.id}" ${index === currentIndex ? 'selected' : ''}>${num}</option>`;
             }).join('');
 
-            const comicParam = source === 'comick' ? `&comicHid=${comicHid}` : '';
+            const comicParam = source === 'comick' ? `&comicSlug=${comicSlug}` : '';
             
             if (currentIndex > 0) {
                 nextBtn.disabled = false;
