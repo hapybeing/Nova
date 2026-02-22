@@ -1,5 +1,5 @@
 const API_BASE = '/proxy/api';
-const COMICK_BASE = '/proxy/comick'; 
+const COMICK_DIRECT_API = 'https://api.comick.io'; 
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -18,15 +18,12 @@ let currentIndex = -1;
 let sourceEngine = 'mangadex'; 
 
 backBtn.addEventListener('click', () => {
-    if (mangaId) window.location.href = `details.html?id=${mangaId}`;
+    if (mangaId) window.location.href = `details.html?id=${mangaId}&v=2`;
     else window.history.back();
 });
 
 async function loadReader() {
-    if (!chapterId) {
-        readerContainer.innerHTML = `<div class="loading-state">Invalid Chapter.</div>`;
-        return;
-    }
+    if (!chapterId || !mangaId) return;
 
     const cachedData = sessionStorage.getItem(`nova_chapters_${mangaId}`);
     if (cachedData) {
@@ -51,7 +48,8 @@ async function loadReader() {
             });
         } 
         else if (sourceEngine === 'comick') {
-            const response = await fetch(`${COMICK_BASE}/chapter/${chapterId}`);
+            // Hitting directly from tablet
+            const response = await fetch(`${COMICK_DIRECT_API}/chapter/${chapterId}`);
             const data = await response.json();
             data.chapter.images.forEach(img => {
                 const imgEl = document.createElement('img');
@@ -85,15 +83,15 @@ function setupNavigation() {
 
     if (currentIndex > 0) {
         nextBtn.disabled = false;
-        nextBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex - 1].id}`;
+        nextBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex - 1].id}&v=2`;
     }
     if (currentIndex < allChapters.length - 1) {
         prevBtn.disabled = false;
-        prevBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex + 1].id}`;
+        prevBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex + 1].id}&v=2`;
     }
 
     chapterSelect.addEventListener('change', (e) => {
-        window.location.href = `reader.html?id=${mangaId}&chapterId=${e.target.value}`;
+        window.location.href = `reader.html?id=${mangaId}&chapterId=${e.target.value}&v=2`;
     });
 }
 
