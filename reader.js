@@ -1,5 +1,5 @@
 const API_BASE = '/proxy/api';
-const COMICK_API = 'https://api.comick.io'; 
+const COMICK_PROXY = '/proxy/comick'; 
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -48,7 +48,8 @@ async function loadReader() {
             });
         } 
         else if (sourceEngine === 'comick') {
-            const response = await fetch(`${COMICK_API}/chapter/${chapterId}`);
+            // Using proxy to bypass CORS image blocks
+            const response = await fetch(`${COMICK_PROXY}/chapter/${chapterId}`);
             const data = await response.json();
             data.chapter.images.forEach(img => {
                 const imgEl = document.createElement('img');
@@ -63,7 +64,7 @@ async function loadReader() {
         if (allChapters.length > 0) setupNavigation();
 
     } catch (error) {
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Connection failed.</div>`;
+        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images.</div>`;
     }
 }
 
