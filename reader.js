@@ -1,5 +1,5 @@
 const API_BASE = '/proxy/api';
-const COMICK_PROXY = '/proxy/comick'; 
+const CORS_PROXY = 'https://api.allorigins.win/get?url=';
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -21,6 +21,13 @@ backBtn.addEventListener('click', () => {
     if (mangaId) window.location.href = `details.html?id=${mangaId}`;
     else window.history.back();
 });
+
+async function fetchAggregator(url) {
+    const proxyUrl = CORS_PROXY + encodeURIComponent(url);
+    const response = await fetch(proxyUrl);
+    const data = await response.json();
+    return JSON.parse(data.contents);
+}
 
 async function loadReader() {
     if (!chapterId || !mangaId) return;
@@ -48,9 +55,10 @@ async function loadReader() {
             });
         } 
         else if (sourceEngine === 'comick') {
-            // Using proxy to bypass CORS image blocks
-            const response = await fetch(`${COMICK_PROXY}/chapter/${chapterId}`);
-            const data = await response.json();
+            // Using proxy to safely bypass browser blocks for image lists
+            const chapUrl = `https://api.comick.io/chapter/${chapterId}`;
+            const data = await fetchAggregator(chapUrl);
+            
             data.chapter.images.forEach(img => {
                 const imgEl = document.createElement('img');
                 imgEl.src = img.url; 
