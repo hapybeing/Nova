@@ -1,7 +1,7 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-const COMICK_DIRECT = 'https://api.comick.io'; // Hitting directly to bypass Datacenter blocks
-const PROXY_URL = 'https://api.allorigins.win/raw?url='; // Our HTML smuggling proxy
+// THE NEW STEALTH PROXY - Bypasses CORS and basic Cloudflare
+const PROXY_URL = 'https://api.codetabs.com/v1/proxy?quest=';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -21,6 +21,11 @@ function sanitizeTitleForSearch(title) {
     return title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim();
 }
 
+// Formats the title perfectly for MangaKakalot's search engine
+function makeSlug(title) {
+    return title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
+}
+
 async function loadMangaDetails() {
     if (!mangaId) {
         detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">No Manga Selected.</div>`;
@@ -28,7 +33,7 @@ async function loadMangaDetails() {
     }
 
     try {
-        // --- METADATA FETCH ---
+        // --- 1. FETCH PREMIUM UI METADATA FROM MANGADEX ---
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         if (!infoResponse.ok) throw new Error('Failed to load manga data');
         const infoData = await infoResponse.json();
@@ -36,10 +41,9 @@ async function loadMangaDetails() {
 
         let chapters = [];
         let source = 'mangadex';
-        let customId = null; 
         const cleanTitle = sanitizeTitleForSearch(getTitle(manga.attributes));
 
-        // --- CASTLE 1: MANGADEX ---
+        // --- 2. TRY MANGADEX CHAPTERS ---
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         if (feedResponse.ok) {
             const feedData = await feedResponse.json();
@@ -53,77 +57,54 @@ async function loadMangaDetails() {
             });
         }
 
-        // --- CASTLE 2: COMICK (DIRECT RESIDENTIAL FETCH) ---
+        // --- 3. THE BRUTE-FORCE MANGAKAKALOT HEIST ---
         if (chapters.length === 0) {
-            console.log(`Castle 1 Empty. Infiltrating ComicK directly for: ${cleanTitle}`);
+            console.log(`Engaging Brute-Force Extraction for: ${cleanTitle}`);
             try {
-                const searchRes = await fetch(`${COMICK_DIRECT}/v1.0/search?q=${encodeURIComponent(cleanTitle)}&limit=3`);
-                if (searchRes.ok) {
-                    const searchData = await searchRes.json();
-                    if (searchData && searchData.length > 0) {
-                        customId = searchData[0].slug; 
-                        const chapRes = await fetch(`${COMICK_DIRECT}/comic/${customId}/chapters?lang=en&limit=9999`);
-                        if (chapRes.ok) {
-                            const chapData = await chapRes.json();
-                            if (chapData.chapters && chapData.chapters.length > 0) {
-                                const seen = new Set();
-                                chapters = chapData.chapters.filter(c => {
-                                    if (!c.chap) return true; 
-                                    if (seen.has(c.chap)) return false; 
-                                    seen.add(c.chap);
-                                    return true;
-                                }).map(c => ({
-                                    id: c.hid, 
-                                    attributes: { chapter: c.chap, title: c.title }
-                                }));
-                                source = 'comick';
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn("Castle 2 Defenses Active.", e);
-            }
-        }
-
-        // --- CASTLE 3: MANGANATO (RAW HTML DOM SCRAPING) ---
-        if (chapters.length === 0) {
-            console.log(`Castle 2 Blocked. Initiating Raw DOM Heist on Manganato...`);
-            try {
-                const searchSlug = cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-                const searchUrl = `${PROXY_URL}${encodeURIComponent('https://manganato.com/search/story/' + searchSlug)}`;
+                const searchSlug = makeSlug(cleanTitle);
+                const searchUrl = `https://mangakakalot.com/search/story/${searchSlug}`;
                 
-                const searchRes = await fetch(searchUrl);
+                // Fetch the search page HTML through our stealth proxy
+                const searchRes = await fetch(`${PROXY_URL}${encodeURIComponent(searchUrl)}`);
                 const searchHtml = await searchRes.text();
                 const parser = new DOMParser();
                 const searchDoc = parser.parseFromString(searchHtml, 'text/html');
                 
-                const firstResult = searchDoc.querySelector('.search-story-item a.item-title');
+                // Find the first manga result link
+                const firstResult = searchDoc.querySelector('.story_name a');
                 
                 if (firstResult) {
-                    const mangaUrl = `${PROXY_URL}${encodeURIComponent(firstResult.href)}`;
-                    const mangaRes = await fetch(mangaUrl);
+                    const mangaUrl = firstResult.href;
+                    
+                    // Fetch the actual manga page HTML
+                    const mangaRes = await fetch(`${PROXY_URL}${encodeURIComponent(mangaUrl)}`);
                     const mangaHtml = await mangaRes.text();
                     const mangaDoc = parser.parseFromString(mangaHtml, 'text/html');
                     
-                    const chapterNodes = mangaDoc.querySelectorAll('.row-content-chapter li a.chapter-name');
-                    chapters = Array.from(chapterNodes).map(node => {
-                        let chapText = node.textContent.replace('Chapter', '').trim();
-                        return {
-                            id: btoa(node.href), // Base64 encode the raw URL to pass to the reader securely
-                            attributes: { chapter: chapText, title: '' }
-                        };
-                    });
-                    source = 'manganato';
+                    // Extract all chapters instantly
+                    const chapterNodes = mangaDoc.querySelectorAll('.chapter-list .row span a');
+                    if (chapterNodes.length > 0) {
+                        chapters = Array.from(chapterNodes).map(node => {
+                            let chapText = node.textContent.replace(/Chapter/i, '').trim();
+                            return {
+                                id: btoa(node.href), // Securely encode the raw URL for the reader
+                                attributes: { chapter: chapText, title: '' }
+                            };
+                        });
+                        source = 'mangakakalot';
+                    }
                 }
             } catch (e) {
-                console.warn("Castle 3 Failed.", e);
+                console.error("MangaKakalot Extraction Failed.", e);
             }
         }
 
-        renderDetails(manga, chapters, source, customId);
+        // SAVE TO LOCAL MEMORY FOR INSTANT READER LOAD
+        sessionStorage.setItem(`nova_chapters_${mangaId}`, JSON.stringify({ chapters, source }));
+
+        renderDetails(manga, chapters, source);
     } catch (error) {
-        detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">Network Error. Trying to reconnect...</div>`;
+        detailsMain.innerHTML = `<div class="loading-state" style="color: #ef4444; margin-top: 10rem;">Network Error. Please refresh.</div>`;
     }
 }
 
@@ -140,7 +121,7 @@ function getCoverUrl(relationships) {
     return '';
 }
 
-function renderDetails(manga, chapters, source, customId) {
+function renderDetails(manga, chapters, source) {
     const title = getTitle(manga.attributes);
     const description = getDescription(manga.attributes);
     const coverUrl = getCoverUrl(manga.relationships);
@@ -150,12 +131,11 @@ function renderDetails(manga, chapters, source, customId) {
     if (authorRel && authorRel.attributes && authorRel.attributes.name) authorName = authorRel.attributes.name;
 
     let chaptersHTML = '';
-    
     if (chapters.length === 0) {
         chaptersHTML = `
             <div class="loading-state" style="text-align: left; padding: 2.5rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--glass-border);">
-                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Available</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">All 3 target castles are heavily guarded. We could not extract the chapters.</p>
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">Extraction Failed</h3>
+                <p style="color: var(--text-secondary); line-height: 1.6;">Our scrapers were blocked by Cloudflare. Try again later.</p>
             </div>
         `;
     } else {
@@ -163,9 +143,8 @@ function renderDetails(manga, chapters, source, customId) {
             const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
             const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
             
-            // Pass necessary routing data
-            const extraParam = source === 'comick' ? `&comicSlug=${customId}` : '';
-            const readerUrl = `reader.html?id=${mangaId}&chapterId=${chapter.id}&source=${source}${extraParam}`;
+            // Clean URL. No badges. No sources.
+            const readerUrl = `reader.html?id=${mangaId}&chapterId=${chapter.id}`;
             
             return `
                 <div class="chapter-card" onclick="window.location.href='${readerUrl}'">
@@ -179,17 +158,13 @@ function renderDetails(manga, chapters, source, customId) {
         }).join('');
     }
 
-    let sourceBadge = '';
-    if (source === 'comick') sourceBadge = `<span style="font-size: 0.7rem; background: var(--accent); padding: 0.2rem 0.5rem; border-radius: 4px; margin-left: 1rem;">Castle 2 Active</span>`;
-    if (source === 'manganato') sourceBadge = `<span style="font-size: 0.7rem; background: #dc2626; padding: 0.2rem 0.5rem; border-radius: 4px; margin-left: 1rem;">Castle 3 Active</span>`;
-
     detailsMain.innerHTML = `
         <div class="details-container">
             <div class="details-cover">
                 <img src="${coverUrl}" alt="${title} cover" referrerpolicy="no-referrer">
             </div>
             <div class="details-info">
-                <h1 class="details-title">${title} ${sourceBadge}</h1>
+                <h1 class="details-title">${title}</h1>
                 <div class="details-author">By ${authorName}</div>
                 <p class="details-synopsis">${description}</p>
             </div>
