@@ -10,23 +10,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <link rel="stylesheet" href="styles.css?v=6">
-    <script type="module" src="app.js?v=6" defer></script>
+    <link rel="stylesheet" href="styles.css?v=7">
+    <script type="module" src="app.js?v=7" defer></script>
 </head>
 <body>
     <nav class="glass-nav">
         <div class="nav-content">
             <div class="logo">NOVA</div>
             <div class="nav-links">
-                <div class="dropdown-wrapper">
-                    <a href="#" class="active" id="navDiscover">Discover <i class="ph ph-caret-down"></i></a>
-                    <div class="nav-dropdown">
-                        <a href="#" class="genre-link" data-genre="391b0423-d847-456f-aff0-8b0cfc03066b" data-name="Action">Action</a>
-                        <a href="#" class="genre-link" data-genre="423e2eae-a7a2-4a8b-ac03-a8351462d71d" data-name="Romance">Romance</a>
-                        <a href="#" class="genre-link" data-genre="5920b825-4181-4a17-beeb-9918b0ff7a30" data-name="Boys' Love (BL)">Boys' Love (BL)</a>
-                        <a href="#" class="genre-link" data-genre="a3c67850-4684-404e-9b7f-c69850ee5da6" data-name="Girls' Love (GL)">Girls' Love (GL)</a>
-                    </div>
-                </div>
+                <a href="index.html" class="active">Discover</a>
                 <a href="library.html">Library</a>
             </div>
         </div>
@@ -47,6 +39,15 @@
     </header>
 
     <main class="discover-section">
+        <div class="genre-container">
+            <button class="genre-pill" data-genre="391b0423-d847-456f-aff0-8b0cfc03066b" data-name="Action">🔥 Action</button>
+            <button class="genre-pill" data-genre="423e2eae-a7a2-4a8b-ac03-a8351462d71d" data-name="Romance">❤️ Romance</button>
+            <button class="genre-pill" data-genre="cdc58593-87dd-415e-bbc0-2ec27bf404cc" data-name="Fantasy">✨ Fantasy</button>
+            <button class="genre-pill" data-genre="87cc87cd-a395-47af-b27a-93258283bbc6" data-name="Adventure">🗺️ Adventure</button>
+            <button class="genre-pill" data-genre="eabc5b4c-6aff-42f3-b657-3e90cbd00b75" data-name="Sci-Fi">🚀 Sci-Fi</button>
+            <button class="genre-pill" data-genre="b9af3a63-f058-46de-a9a0-e0c13906197a" data-name="Drama">🎭 Drama</button>
+        </div>
+
         <section id="searchResultsSection" class="hidden">
             <div class="section-header">
                 <h2 id="searchHeading">Search Results</h2>
