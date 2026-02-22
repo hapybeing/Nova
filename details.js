@@ -26,17 +26,14 @@ async function loadMangaDetails() {
     }
 
     try {
-        // 1. GET METADATA
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         const infoData = await infoResponse.json();
         const manga = infoData.data;
 
         let chapters = [];
         let source = 'mangadex';
-        let comicSlug = null;
         const searchTitle = cleanTitle(getTitle(manga.attributes));
 
-        // 2. CHECK MANGADEX CHAPTERS
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         if (feedResponse.ok) {
             const feedData = await feedResponse.json();
@@ -50,18 +47,20 @@ async function loadMangaDetails() {
             });
         }
 
-        // 3. THE SAFE OMNI-SCRAPER (Fixes the 400 Crash Error)
+        // THE FIXED NINJA ENGINE
         if (chapters.length === 0) {
             try {
                 const searchRes = await fetch(`${COMICK_API}/v1.0/search?q=${encodeURIComponent(searchTitle)}&limit=1`);
                 if (searchRes.ok) {
                     const searchData = await searchRes.json();
                     if (searchData && searchData.length > 0) {
-                        comicSlug = searchData[0].slug;
                         
-                        // We ask for Pages 1, 2, 3 safely instead of spamming limit=9999
+                        // THE FATAL FLAW FIXED: Using the secret Hash ID (hid) instead of the slug
+                        const targetHid = searchData[0].hid; 
+                        
+                        // Safely fetching 500 chapters across 5 pages
                         const requests = [1, 2, 3, 4, 5].map(page =>
-                            fetch(`${COMICK_API}/comic/${comicSlug}/chapters?lang=en&limit=100&page=${page}`)
+                            fetch(`${COMICK_API}/comic/${targetHid}/chapters?lang=en&limit=100&page=${page}`)
                             .then(r => r.ok ? r.json() : null)
                             .catch(() => null)
                         );
@@ -78,8 +77,8 @@ async function loadMangaDetails() {
                         if (allAggregatorChapters.length > 0) {
                             const seen = new Set();
                             chapters = allAggregatorChapters.filter(c => {
-                                if (!c.chap) return true; // Keep Oneshots
-                                if (seen.has(c.chap)) return false; // Remove duplicates
+                                if (!c.chap) return true; 
+                                if (seen.has(c.chap)) return false; 
                                 seen.add(c.chap);
                                 return true;
                             }).map(c => ({
@@ -91,11 +90,11 @@ async function loadMangaDetails() {
                     }
                 }
             } catch (e) {
-                console.warn("Aggregator connection failed.");
+                console.warn("Aggregator connection failed.", e);
             }
         }
 
-        sessionStorage.setItem(`nova_chapters_${mangaId}`, JSON.stringify({ chapters, source, comicSlug }));
+        sessionStorage.setItem(`nova_chapters_${mangaId}`, JSON.stringify({ chapters, source }));
         renderDetails(manga, chapters);
 
     } catch (error) {
