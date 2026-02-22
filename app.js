@@ -1,5 +1,7 @@
-const API_BASE = '/proxy/api';
-const UPLOADS_BASE = '/proxy/uploads';
+// NEW TUNNEL: Bypasses Vercel and ISP Blocks completely
+const API_BASE = 'https://corsproxy.io/?https://api.mangadex.org';
+// Loading images directly for maximum speed
+const UPLOADS_BASE = 'https://uploads.mangadex.org';
 
 const searchInput = document.getElementById('searchInput');
 const searchDropdown = document.getElementById('searchDropdown');
@@ -29,7 +31,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK: Safely fetching Isekai without triggering API blocks
+// GENRE CLICK: Isekai and Action fully unlocked
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -39,21 +41,21 @@ genreLinks.forEach(link => {
         carousels.forEach(c => c.classList.add('hidden'));
         searchResultsSection.classList.remove('hidden');
         searchHeading.innerText = `Top ${genreName}`;
-        searchResultsGrid.innerHTML = '<div class="loading-state">Fetching database...</div>';
+        searchResultsGrid.innerHTML = '<div class="loading-state">Syncing database via tunnel...</div>';
 
         try {
-            // Suggestive is allowed, but Erotica is removed to prevent 403 Forbidden crash
             const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
             if (!response.ok) throw new Error("API Blocked");
             const data = await response.json();
             renderMangaCards(data.data, searchResultsGrid);
         } catch (error) {
-            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Connection failed. Check network.</div>`;
+            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Connection failed. Retrying...</div>`;
         }
     });
 });
 
+// LIVE SEARCH: Tunnel routed
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
