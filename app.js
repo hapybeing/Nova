@@ -29,7 +29,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK: Suggestive allowed for Isekai. Erotica strictly removed to avoid 403 crashes.
+// GENRE CLICK: Filtered to ONLY show manga with English chapters
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -39,10 +39,11 @@ genreLinks.forEach(link => {
         carousels.forEach(c => c.classList.add('hidden'));
         searchResultsSection.classList.remove('hidden');
         searchHeading.innerText = `Top ${genreName}`;
-        searchResultsGrid.innerHTML = '<div class="loading-state">Syncing securely...</div>';
+        searchResultsGrid.innerHTML = '<div class="loading-state">Syncing secure database...</div>';
 
         try {
-            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[followedCount]=desc`;
+            // Added availableTranslatedLanguage[]=en
+            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
             if (!response.ok) throw new Error("API Blocked");
             const data = await response.json();
@@ -53,7 +54,7 @@ genreLinks.forEach(link => {
     });
 });
 
-// LIVE SEARCH
+// SEARCH: Kept broad so users can find anything
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -98,7 +99,6 @@ searchInput.addEventListener('input', (e) => {
     }, 500);
 });
 
-// FULL SEARCH
 searchInput.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
@@ -135,10 +135,11 @@ clearSearchBtn.addEventListener('click', () => {
     carousels.forEach(c => c.classList.remove('hidden'));
 });
 
+// CAROUSELS: Filtered to ONLY show manga with English chapters
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
     try {
-        const url = `${API_BASE}/manga?limit=15&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&${queryParams}`;
+        const url = `${API_BASE}/manga?limit=15&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&includes[]=cover_art&${queryParams}`;
         const response = await fetch(url);
         const data = await response.json();
         renderMangaCards(data.data, container);
@@ -176,7 +177,6 @@ function renderMangaCards(mangaList, container) {
     });
 }
 
-// STAGGERED LOADING: Prevents MangaDex from blocking your app for asking too fast.
 document.addEventListener('DOMContentLoaded', () => {
     fetchCarouselData('trendingManga', 'originalLanguage[]=ja&order[followedCount]=desc');
     setTimeout(() => fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc'), 1000);
