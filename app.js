@@ -29,7 +29,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// Fixed Discover Logic (Proxy restored, Suggestive rating allowed for Isekai/Action)
+// GENRE CLICK: Action and Isekai fixed
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -39,20 +39,22 @@ genreLinks.forEach(link => {
         carousels.forEach(c => c.classList.add('hidden'));
         searchResultsSection.classList.remove('hidden');
         searchHeading.innerText = `Top ${genreName}`;
-        searchResultsGrid.innerHTML = '<div class="loading-state">Fetching titles...</div>';
+        searchResultsGrid.innerHTML = '<div class="loading-state">Syncing secure connection...</div>';
 
         try {
+            // Suggestive allowed so Isekai actually populates
             const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
+            if(!response.ok) throw new Error("Network block");
             const data = await response.json();
             renderMangaCards(data.data, searchResultsGrid);
         } catch (error) {
-            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load genre. Check your network.</div>`;
+            searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load. Vercel rate limit hit.</div>`;
         }
     });
 });
 
-// LIVE SEARCH (Proxy restored)
+// SEARCH BAR
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -60,7 +62,7 @@ searchInput.addEventListener('input', (e) => {
     if (!query) { searchDropdown.classList.add('hidden'); return; }
 
     searchDropdown.classList.remove('hidden');
-    searchDropdown.innerHTML = '<div class="dropdown-msg">Searching...</div>';
+    searchDropdown.innerHTML = '<div class="dropdown-msg">Searching secure database...</div>';
 
     searchTimeout = setTimeout(async () => {
         try {
@@ -85,7 +87,7 @@ searchInput.addEventListener('input', (e) => {
                     <img src="${coverUrl}" alt="cover" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
                     <div class="dropdown-info">
                         <span class="dropdown-title">${title}</span>
-                        <span class="dropdown-meta" style="text-transform: capitalize;">${status}</span>
+                        <span class="dropdown-meta">${status}</span>
                     </div>
                 `;
                 item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
@@ -97,6 +99,7 @@ searchInput.addEventListener('input', (e) => {
     }, 500);
 });
 
+// FULL SEARCH
 searchInput.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
@@ -105,7 +108,7 @@ searchInput.addEventListener('keypress', async (e) => {
             carousels.forEach(c => c.classList.add('hidden'));
             searchResultsSection.classList.remove('hidden');
             searchHeading.innerText = `Results for "${query}"`;
-            searchResultsGrid.innerHTML = '<div class="loading-state">Searching database...</div>';
+            searchResultsGrid.innerHTML = '<div class="loading-state">Searching...</div>';
             searchInput.blur(); 
 
             try {
@@ -114,7 +117,7 @@ searchInput.addEventListener('keypress', async (e) => {
                 const data = await response.json();
                 renderMangaCards(data.data, searchResultsGrid);
             } catch (error) {
-                searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to find results.</div>`;
+                searchResultsGrid.innerHTML = `<div class="loading-state" style="color: #ef4444;">Search failed.</div>`;
             }
         }
     }
@@ -141,7 +144,7 @@ async function fetchCarouselData(containerId, queryParams) {
         const data = await response.json();
         renderMangaCards(data.data, container);
     } catch (error) {
-        container.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load.</div>`;
+        container.innerHTML = `<div class="loading-state" style="color: #ef4444;">Connection blocked.</div>`;
     }
 }
 
@@ -174,8 +177,9 @@ function renderMangaCards(mangaList, container) {
     });
 }
 
+// Staggering the loads so Vercel doesn't trigger a DDOS block
 document.addEventListener('DOMContentLoaded', () => {
     fetchCarouselData('trendingManga', 'originalLanguage[]=ja&order[followedCount]=desc');
-    fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc');
-    fetchCarouselData('trendingManhua', 'originalLanguage[]=zh&order[followedCount]=desc');
+    setTimeout(() => fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc'), 500);
+    setTimeout(() => fetchCarouselData('trendingManhua', 'originalLanguage[]=zh&order[followedCount]=desc'), 1000);
 });
