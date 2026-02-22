@@ -1,5 +1,7 @@
 const API_BASE = '/proxy/api';
-const COMICK_PROXY = '/proxy/comick'; 
+const HTML_PROXY = 'https://api.allorigins.win/get?url=';
+// This acts as a disguise so Manganato doesn't know we are stealing their images
+const IMAGE_SMUGGLER = 'https://wsrv.nl/?url=';
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -47,14 +49,24 @@ async function loadReader() {
                 readerContainer.appendChild(imgEl);
             });
         } 
-        else if (sourceEngine === 'comick') {
-            // Using proxy to safely bypass browser blocks
-            const response = await fetch(`${COMICK_PROXY}/chapter/${chapterId}`);
-            const data = await response.json();
+        else if (sourceEngine === 'manganato') {
+            // 1. Decode the URL we saved earlier
+            const decodedUrl = atob(chapterId); 
             
-            data.chapter.images.forEach(img => {
+            // 2. Fetch the raw HTML of the chapter page
+            const res = await fetch(`${HTML_PROXY}${encodeURIComponent(decodedUrl)}`);
+            const data = await res.json();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.contents, 'text/html');
+            
+            // 3. Rip the images from their container
+            const images = doc.querySelectorAll('.container-chapter-reader img');
+            images.forEach(img => {
                 const imgEl = document.createElement('img');
-                imgEl.src = img.url; 
+                let rawSrc = img.src || img.getAttribute('data-src');
+                
+                // 4. Send the image through the smuggler to bypass their Hotlink blocker
+                imgEl.src = `${IMAGE_SMUGGLER}${encodeURIComponent(rawSrc)}&output=webp`;
                 imgEl.className = 'reader-page';
                 imgEl.loading = 'lazy';
                 imgEl.setAttribute('referrerpolicy', 'no-referrer');
@@ -65,7 +77,7 @@ async function loadReader() {
         if (allChapters.length > 0) setupNavigation();
 
     } catch (error) {
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images securely.</div>`;
+        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Extraction failed.</div>`;
     }
 }
 
