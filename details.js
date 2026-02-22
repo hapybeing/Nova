@@ -1,6 +1,6 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-const COMICK_API = 'https://api.comick.io'; // Client-side direct fetch!
+const COMICK_API = 'https://api.comick.io'; 
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -15,7 +15,6 @@ function getTitle(attributes) {
     return attributes.title ? (attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title') : 'Unknown Title';
 }
 
-// Cleans up the title perfectly so the aggregator doesn't get confused
 function cleanTitle(title) {
     return title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim();
 }
@@ -27,7 +26,7 @@ async function loadMangaDetails() {
     }
 
     try {
-        // 1. GET PREMIUM METADATA
+        // 1. GET METADATA
         const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
         const infoData = await infoResponse.json();
         const manga = infoData.data;
@@ -51,48 +50,56 @@ async function loadMangaDetails() {
             });
         }
 
-        // 3. THE STEALTH NINJA FALLBACK (Client-Side Aggregator)
+        // 3. THE SAFE OMNI-SCRAPER (Fixes the 400 Crash Error)
         if (chapters.length === 0) {
-            console.log("Engaging stealth scraper for:", searchTitle);
             try {
-                // Fetch directly from tablet, bypassing Vercel Cloudflare blocks
                 const searchRes = await fetch(`${COMICK_API}/v1.0/search?q=${encodeURIComponent(searchTitle)}&limit=1`);
                 if (searchRes.ok) {
                     const searchData = await searchRes.json();
                     if (searchData && searchData.length > 0) {
                         comicSlug = searchData[0].slug;
                         
-                        // Extract all chapters instantly
-                        const chapRes = await fetch(`${COMICK_API}/comic/${comicSlug}/chapters?lang=en&limit=9999`);
-                        if (chapRes.ok) {
-                            const chapData = await chapRes.json();
-                            if (chapData.chapters && chapData.chapters.length > 0) {
-                                const seen = new Set();
-                                chapters = chapData.chapters.filter(c => {
-                                    if (!c.chap) return true;
-                                    if (seen.has(c.chap)) return false;
-                                    seen.add(c.chap);
-                                    return true;
-                                }).map(c => ({
-                                    id: c.hid, 
-                                    attributes: { chapter: c.chap, title: c.title || '' }
-                                }));
-                                source = 'comick';
+                        // We ask for Pages 1, 2, 3 safely instead of spamming limit=9999
+                        const requests = [1, 2, 3, 4, 5].map(page =>
+                            fetch(`${COMICK_API}/comic/${comicSlug}/chapters?lang=en&limit=100&page=${page}`)
+                            .then(r => r.ok ? r.json() : null)
+                            .catch(() => null)
+                        );
+                        
+                        const pagesData = await Promise.all(requests);
+                        let allAggregatorChapters = [];
+                        
+                        pagesData.forEach(data => {
+                            if(data && data.chapters) {
+                                allAggregatorChapters.push(...data.chapters);
                             }
+                        });
+
+                        if (allAggregatorChapters.length > 0) {
+                            const seen = new Set();
+                            chapters = allAggregatorChapters.filter(c => {
+                                if (!c.chap) return true; // Keep Oneshots
+                                if (seen.has(c.chap)) return false; // Remove duplicates
+                                seen.add(c.chap);
+                                return true;
+                            }).map(c => ({
+                                id: c.hid, 
+                                attributes: { chapter: c.chap, title: c.title || '' }
+                            }));
+                            source = 'comick';
                         }
                     }
                 }
             } catch (e) {
-                console.warn("Stealth scrape failed.");
+                console.warn("Aggregator connection failed.");
             }
         }
 
-        // Cache for instant reading
         sessionStorage.setItem(`nova_chapters_${mangaId}`, JSON.stringify({ chapters, source, comicSlug }));
         renderDetails(manga, chapters);
 
     } catch (error) {
-        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Network Error. Trying to reconnect...</div>`;
+        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Network connection lost.</div>`;
     }
 }
 
@@ -121,9 +128,9 @@ function renderDetails(manga, chapters) {
     let chaptersHTML = '';
     if (chapters.length === 0) {
         chaptersHTML = `
-            <div class="loading-state" style="text-align: left; padding: 2.5rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--glass-border);">
+            <div class="loading-state" style="text-align: left; padding: 2.5rem; background: #18181b; border-radius: 16px; border: 1px solid var(--glass-border);">
                 <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">Check Back Later</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">Translators are currently working on this title. Chapters will appear here once they hit the open network.</p>
+                <p style="color: var(--text-secondary); line-height: 1.6;">Our engines searched all available networks, but this title is currently locked.</p>
             </div>
         `;
     } else {
@@ -145,7 +152,9 @@ function renderDetails(manga, chapters) {
     detailsMain.innerHTML = `
         <div class="details-container">
             <div class="details-cover">
-                <img src="${coverUrl}" alt="cover" referrerpolicy="no-referrer">
+                <div class="details-cover-inner">
+                    <img src="${coverUrl}" alt="cover" referrerpolicy="no-referrer">
+                </div>
             </div>
             <div class="details-info">
                 <h1 class="details-title">${title}</h1>
