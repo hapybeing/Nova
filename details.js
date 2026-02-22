@@ -1,6 +1,7 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-const COMICK_PROXY = '/proxy/comick'; // Bypasses Brave's third-party blocking
+// The ultimate raw HTML smuggler
+const HTML_PROXY = 'https://api.allorigins.win/get?url=';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -15,8 +16,9 @@ function getTitle(attributes) {
     return attributes.title ? (attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title') : 'Unknown Title';
 }
 
-function cleanTitle(title) {
-    return title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim();
+function cleanTitleForManganato(title) {
+    // Manganato uses underscores for spaces in their search URLs
+    return title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
 }
 
 async function loadMangaDetails() {
@@ -29,7 +31,7 @@ async function loadMangaDetails() {
 
         let chapters = [];
         let source = 'mangadex';
-        const searchTitle = cleanTitle(getTitle(manga.attributes));
+        const searchTitle = cleanTitleForManganato(getTitle(manga.attributes));
 
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         if (feedResponse.ok) {
@@ -44,48 +46,46 @@ async function loadMangaDetails() {
             });
         }
 
-        // THE SECURE FALLBACK
+        // THE RAW DOM HEIST (Manganato)
         if (chapters.length === 0) {
+            console.log("MangaDex empty. Raiding Manganato HTML for:", searchTitle);
             try {
-                // Sent through the Vercel proxy to evade Brave Shields
-                const searchRes = await fetch(`${COMICK_PROXY}/v1.0/search?q=${encodeURIComponent(searchTitle)}&limit=1`);
-                if (searchRes.ok) {
-                    const searchData = await searchRes.json();
+                // 1. Search Manganato
+                const searchUrl = `https://manganato.com/search/story/${searchTitle}`;
+                const proxySearch = await fetch(`${HTML_PROXY}${encodeURIComponent(searchUrl)}`);
+                const searchData = await proxySearch.json();
+                
+                const parser = new DOMParser();
+                const searchDoc = parser.parseFromString(searchData.contents, 'text/html');
+                
+                // Find the first manga link on their site
+                const firstResult = searchDoc.querySelector('.search-story-item a.item-title');
+                
+                if (firstResult) {
+                    const mangaUrl = firstResult.href;
                     
-                    if (searchData && searchData.length > 0) {
-                        const targetHid = searchData[0].hid; 
-                        
-                        // Grab pages safely to prevent server crashes
-                        const requests = [1, 2, 3].map(page =>
-                            fetch(`${COMICK_PROXY}/comic/${targetHid}/chapters?lang=en&limit=100&page=${page}`)
-                            .then(r => r.ok ? r.json() : null)
-                            .catch(() => null)
-                        );
-                        
-                        const pagesData = await Promise.all(requests);
-                        let allAggregatorChapters = [];
-                        
-                        pagesData.forEach(data => {
-                            if(data && data.chapters) allAggregatorChapters.push(...data.chapters);
+                    // 2. Load the actual manga page
+                    const proxyManga = await fetch(`${HTML_PROXY}${encodeURIComponent(mangaUrl)}`);
+                    const mangaPageData = await proxyManga.json();
+                    const mangaDoc = parser.parseFromString(mangaPageData.contents, 'text/html');
+                    
+                    // 3. Slice out the chapters
+                    const chapterNodes = mangaDoc.querySelectorAll('.row-content-chapter li a.chapter-name');
+                    
+                    if (chapterNodes.length > 0) {
+                        chapters = Array.from(chapterNodes).map(node => {
+                            let chapText = node.textContent.replace(/Chapter/i, '').trim();
+                            return {
+                                // We base64 encode their website link to safely pass it to our reader
+                                id: btoa(node.href), 
+                                attributes: { chapter: chapText, title: '' }
+                            };
                         });
-
-                        if (allAggregatorChapters.length > 0) {
-                            const seen = new Set();
-                            chapters = allAggregatorChapters.filter(c => {
-                                if (!c.chap) return true;
-                                if (seen.has(c.chap)) return false;
-                                seen.add(c.chap);
-                                return true;
-                            }).map(c => ({
-                                id: c.hid, 
-                                attributes: { chapter: c.chap, title: c.title || '' }
-                            }));
-                            source = 'comick';
-                        }
+                        source = 'manganato';
                     }
                 }
             } catch (e) {
-                console.warn("Aggregator fallback blocked or failed.");
+                console.error("Manganato Heist failed.", e);
             }
         }
 
@@ -124,18 +124,16 @@ function renderDetails(manga, chapters) {
         chaptersHTML = `
             <div class="loading-state" style="text-align: left; padding: 2.5rem; background: #18181b; border-radius: 16px; border: 1px solid var(--glass-border);">
                 <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Available</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6;">Our proxy was completely blocked by security. We cannot extract these chapters at this time.</p>
+                <p style="color: var(--text-secondary); line-height: 1.6;">Translators are currently working on this title. Chapters will appear here once available.</p>
             </div>
         `;
     } else {
         chaptersHTML = chapters.map(chapter => {
             const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
-            const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
             return `
                 <div class="chapter-card" onclick="window.location.href='reader.html?id=${mangaId}&chapterId=${chapter.id}'">
                     <div>
                         <div class="chapter-number">${chapNum}</div>
-                        <div class="chapter-title">${chapTitle}</div>
                     </div>
                     <i class="ph ph-book-open" style="color: var(--text-secondary); font-size: 1.2rem;"></i>
                 </div>
