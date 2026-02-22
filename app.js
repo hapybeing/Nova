@@ -1,5 +1,5 @@
-const API_BASE = '/proxy/api';
-const UPLOADS_BASE = '/proxy/uploads';
+const API_BASE = 'https://api.mangadex.org'; // Going direct to source
+const UPLOADS_BASE = 'https://uploads.mangadex.org';
 
 const searchInput = document.getElementById('searchInput');
 const searchDropdown = document.getElementById('searchDropdown');
@@ -18,8 +18,7 @@ function getTitle(attributes) {
         const enTitleObj = attributes.altTitles.find(t => t.en);
         if (enTitleObj) return enTitleObj.en;
     }
-    if (attributes.title) return attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title';
-    return 'Unknown Title';
+    return attributes.title ? (attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title') : 'Unknown Title';
 }
 
 function getCoverUrl(mangaId, relationships) {
@@ -30,7 +29,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// Fixed Discover Logic (Works with Isekai now)
+// GENRE CLICK: Fixed ratings to allow Isekai and Action to populate
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -43,8 +42,7 @@ genreLinks.forEach(link => {
         searchResultsGrid.innerHTML = '<div class="loading-state">Fetching titles...</div>';
 
         try {
-            // Removed contentRating=safe filter so action/isekai works
-            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&includes[]=cover_art&order[followedCount]=desc`;
+            const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
             const data = await response.json();
             renderMangaCards(data.data, searchResultsGrid);
@@ -54,6 +52,7 @@ genreLinks.forEach(link => {
     });
 });
 
+// LIVE SEARCH
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
@@ -82,15 +81,14 @@ searchInput.addEventListener('input', (e) => {
                 
                 const item = document.createElement('div');
                 item.className = 'dropdown-item';
-                // CACHE BUSTER for reader transition
                 item.innerHTML = `
                     <img src="${coverUrl}" alt="cover" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
                     <div class="dropdown-info">
                         <span class="dropdown-title">${title}</span>
-                        <span class="dropdown-meta" style="text-transform: capitalize;">${status}</span>
+                        <span class="dropdown-meta">${status}</span>
                     </div>
                 `;
-                item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}&v=2`; });
+                item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
                 searchDropdown.appendChild(item);
             });
         } catch (error) {
@@ -99,6 +97,7 @@ searchInput.addEventListener('input', (e) => {
     }, 500);
 });
 
+// FULL SEARCH (Enter key)
 searchInput.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
@@ -111,7 +110,7 @@ searchInput.addEventListener('keypress', async (e) => {
             searchInput.blur(); 
 
             try {
-                const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&includes[]=cover_art&order[relevance]=desc`;
+                const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&order[relevance]=desc`;
                 const response = await fetch(url);
                 const data = await response.json();
                 renderMangaCards(data.data, searchResultsGrid);
@@ -135,10 +134,11 @@ clearSearchBtn.addEventListener('click', () => {
     carousels.forEach(c => c.classList.remove('hidden'));
 });
 
+// CAROUSELS
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
     try {
-        const url = `${API_BASE}/manga?limit=15&includes[]=cover_art&${queryParams}`;
+        const url = `${API_BASE}/manga?limit=15&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art&${queryParams}`;
         const response = await fetch(url);
         const data = await response.json();
         renderMangaCards(data.data, container);
@@ -149,20 +149,23 @@ async function fetchCarouselData(containerId, queryParams) {
 
 function renderMangaCards(mangaList, container) {
     container.innerHTML = ''; 
+    if (!mangaList || mangaList.length === 0) {
+        container.innerHTML = `<div class="loading-state">No items found.</div>`;
+        return;
+    }
     mangaList.forEach(manga => {
         try {
             const title = getTitle(manga.attributes);
             const coverUrl = getCoverUrl(manga.id, manga.relationships);
             let genre = 'Ongoing';
             if (manga.attributes?.tags) {
-                const genreTag = manga.attributes.tags.find(tag => tag.attributes?.group === 'genre');
+                const genreTag = manga.attributes.tags.find(tag => tag.attributes?.group === 'genre' || tag.attributes?.group === 'theme');
                 if (genreTag && genreTag.attributes?.name?.en) genre = genreTag.attributes.name.en;
             }
 
             const card = document.createElement('div');
             card.className = 'manga-card';
-            // CACHE BUSTER on click
-            card.onclick = () => { window.location.href = `details.html?id=${manga.id}&v=2`; };
+            card.onclick = () => { window.location.href = `details.html?id=${manga.id}`; };
             card.innerHTML = `
                 <div class="cover-wrapper">
                     <img src="${coverUrl}" alt="cover" loading="lazy" referrerpolicy="no-referrer">
