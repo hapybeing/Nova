@@ -78,7 +78,7 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 
 /* FIXED: Mathematically Perfect Covers (Padding-Bottom Hack) */
 .cover-wrapper { 
-    position: relative; width: 100%; height: 0; padding-bottom: 145%; /* Forces EXACT 2:3 ratio */
+    position: relative; width: 100%; height: 0; padding-bottom: 145%; 
     border-radius: 10px; background: var(--bg-surface); margin-bottom: 0.75rem; 
     box-shadow: 0 10px 20px rgba(0,0,0,0.5); overflow: hidden;
 }
@@ -92,7 +92,6 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
 /* Details & Reader */
 .details-container { max-width: 1200px; margin: 8rem auto 3rem; padding: 0 2rem; display: flex; gap: 3rem; }
 .details-cover { flex: 0 0 280px; position: relative; height: fit-content; }
-/* Use padding hack here too for perfect alignment */
 .details-cover-inner { position: relative; width: 100%; padding-bottom: 145%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
 .details-cover-inner img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 
@@ -127,7 +126,6 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
     .details-cover { flex: 0 0 auto; max-width: 220px; margin: 0 auto; width: 100%; }
     .details-title, .details-author { text-align: center; }
     .reader-controls { padding: 0.8rem 1rem; gap: 0.5rem; }
-    .control-btn { padding: 0.5rem 0.6rem; font-size: 0.85rem; }
     .nav-dropdown { left: 10%; transform: translateX(0) translateY(10px); }
     .dropdown-wrapper:hover .nav-dropdown { transform: translateX(0) translateY(0); }
 }
