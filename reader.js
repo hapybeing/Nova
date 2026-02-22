@@ -1,5 +1,5 @@
 const API_BASE = '/proxy/api';
-const COMICK_DIRECT_API = 'https://api.comick.io'; 
+const COMICK_API = 'https://api.comick.io'; // Client-side direct fetch!
 
 const urlParams = new URLSearchParams(window.location.search);
 const chapterId = urlParams.get('chapterId');
@@ -18,7 +18,7 @@ let currentIndex = -1;
 let sourceEngine = 'mangadex'; 
 
 backBtn.addEventListener('click', () => {
-    if (mangaId) window.location.href = `details.html?id=${mangaId}&v=2`;
+    if (mangaId) window.location.href = `details.html?id=${mangaId}`;
     else window.history.back();
 });
 
@@ -48,8 +48,8 @@ async function loadReader() {
             });
         } 
         else if (sourceEngine === 'comick') {
-            // Hitting directly from tablet
-            const response = await fetch(`${COMICK_DIRECT_API}/chapter/${chapterId}`);
+            // Fetch images directly, bypassing ISP and Vercel blocks entirely
+            const response = await fetch(`${COMICK_API}/chapter/${chapterId}`);
             const data = await response.json();
             data.chapter.images.forEach(img => {
                 const imgEl = document.createElement('img');
@@ -83,15 +83,15 @@ function setupNavigation() {
 
     if (currentIndex > 0) {
         nextBtn.disabled = false;
-        nextBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex - 1].id}&v=2`;
+        nextBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex - 1].id}`;
     }
     if (currentIndex < allChapters.length - 1) {
         prevBtn.disabled = false;
-        prevBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex + 1].id}&v=2`;
+        prevBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex + 1].id}`;
     }
 
     chapterSelect.addEventListener('change', (e) => {
-        window.location.href = `reader.html?id=${mangaId}&chapterId=${e.target.value}&v=2`;
+        window.location.href = `reader.html?id=${mangaId}&chapterId=${e.target.value}`;
     });
 }
 
