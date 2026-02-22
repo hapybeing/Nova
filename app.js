@@ -12,21 +12,17 @@ const genreLinks = document.querySelectorAll('.genre-link');
 
 let searchTimeout; 
 
-// Extract English Title
 function getTitle(attributes) {
     if (attributes.title && attributes.title.en) return attributes.title.en;
     if (attributes.altTitles && attributes.altTitles.length > 0) {
         const enTitleObj = attributes.altTitles.find(t => t.en);
         if (enTitleObj) return enTitleObj.en;
     }
-    if (attributes.title) {
-        return attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title';
-    }
+    if (attributes.title) return attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title';
     return 'Unknown Title';
 }
 
 function getCoverUrl(mangaId, relationships) {
-    if (!relationships) return ''; 
     const coverRel = relationships.find(rel => rel.type === 'cover_art');
     if (coverRel && coverRel.attributes && coverRel.attributes.fileName) {
         return `${UPLOADS_BASE}/covers/${mangaId}/${coverRel.attributes.fileName}.256.jpg`;
@@ -34,7 +30,7 @@ function getCoverUrl(mangaId, relationships) {
     return ''; 
 }
 
-// GENRE CLICK LOGIC (Adventure Fix applied here)
+// FIX: Adventure Tab
 genreLinks.forEach(link => {
     link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -47,11 +43,9 @@ genreLinks.forEach(link => {
         searchResultsGrid.innerHTML = '<div class="loading-state">Fetching titles...</div>';
 
         try {
-            // FIX: Removed contentRating[]=safe so Action/Adventure titles load correctly
+            // contentRating is removed here so Action/Adventure titles populate!
             const url = `${API_BASE}/manga?includedTags[]=${genreId}&limit=24&includes[]=cover_art&order[followedCount]=desc`;
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Genre fetch failed');
-            
             const data = await response.json();
             renderMangaCards(data.data, searchResultsGrid);
         } catch (error) {
@@ -60,15 +54,11 @@ genreLinks.forEach(link => {
     });
 });
 
-// LIVE SEARCH 
 searchInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
     clearTimeout(searchTimeout);
     
-    if (!query) {
-        searchDropdown.classList.add('hidden');
-        return;
-    }
+    if (!query) { searchDropdown.classList.add('hidden'); return; }
 
     searchDropdown.classList.remove('hidden');
     searchDropdown.innerHTML = '<div class="dropdown-msg">Searching...</div>';
@@ -77,42 +67,37 @@ searchInput.addEventListener('input', (e) => {
         try {
             const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=5&includes[]=cover_art&order[relevance]=desc`;
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Search failed');
             const data = await response.json();
-            renderLiveSearchDropdown(data.data);
+            
+            searchDropdown.innerHTML = '';
+            if (data.data.length === 0) {
+                searchDropdown.innerHTML = '<div class="dropdown-msg">No titles found</div>';
+                return;
+            }
+
+            data.data.forEach(manga => {
+                const title = getTitle(manga.attributes);
+                const coverUrl = getCoverUrl(manga.id, manga.relationships);
+                const status = manga.attributes.status || 'Unknown';
+                
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                item.innerHTML = `
+                    <img src="${coverUrl}" alt="cover" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
+                    <div class="dropdown-info">
+                        <span class="dropdown-title">${title}</span>
+                        <span class="dropdown-meta" style="text-transform: capitalize;">${status}</span>
+                    </div>
+                `;
+                item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
+                searchDropdown.appendChild(item);
+            });
         } catch (error) {
             searchDropdown.innerHTML = '<div class="dropdown-msg" style="color:#ef4444;">Error finding titles</div>';
         }
     }, 500);
 });
 
-function renderLiveSearchDropdown(mangaList) {
-    searchDropdown.innerHTML = '';
-    if (!mangaList || mangaList.length === 0) {
-        searchDropdown.innerHTML = '<div class="dropdown-msg">No titles found</div>';
-        return;
-    }
-
-    mangaList.forEach(manga => {
-        const title = getTitle(manga.attributes);
-        const coverUrl = getCoverUrl(manga.id, manga.relationships);
-        const status = manga.attributes.status ? manga.attributes.status.charAt(0).toUpperCase() + manga.attributes.status.slice(1) : 'Unknown';
-        
-        const item = document.createElement('div');
-        item.className = 'dropdown-item';
-        item.innerHTML = `
-            <img src="${coverUrl}" alt="${title}" class="dropdown-thumb" loading="lazy" referrerpolicy="no-referrer">
-            <div class="dropdown-info">
-                <span class="dropdown-title">${title}</span>
-                <span class="dropdown-meta">${status}</span>
-            </div>
-        `;
-        item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
-        searchDropdown.appendChild(item);
-    });
-}
-
-// FULL SEARCH (Enter key)
 searchInput.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value.trim();
@@ -127,7 +112,6 @@ searchInput.addEventListener('keypress', async (e) => {
             try {
                 const url = `${API_BASE}/manga?title=${encodeURIComponent(query)}&limit=24&includes[]=cover_art&order[relevance]=desc`;
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('Search failed');
                 const data = await response.json();
                 renderMangaCards(data.data, searchResultsGrid);
             } catch (error) {
@@ -137,14 +121,12 @@ searchInput.addEventListener('keypress', async (e) => {
     }
 });
 
-// Close dropdown if clicked outside
 document.addEventListener('click', (e) => {
     if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
         searchDropdown.classList.add('hidden');
     }
 });
 
-// CLEAR SEARCH
 clearSearchBtn.addEventListener('click', () => {
     searchInput.value = '';
     searchDropdown.classList.add('hidden');
@@ -152,13 +134,11 @@ clearSearchBtn.addEventListener('click', () => {
     carousels.forEach(c => c.classList.remove('hidden'));
 });
 
-// CAROUSEL DATA FETCHING
 async function fetchCarouselData(containerId, queryParams) {
     const container = document.getElementById(containerId);
     try {
         const url = `${API_BASE}/manga?limit=15&includes[]=cover_art&${queryParams}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         const data = await response.json();
         renderMangaCards(data.data, container);
     } catch (error) {
@@ -166,13 +146,8 @@ async function fetchCarouselData(containerId, queryParams) {
     }
 }
 
-// RENDER CARDS
 function renderMangaCards(mangaList, container) {
     container.innerHTML = ''; 
-    if (!mangaList || mangaList.length === 0) {
-        container.innerHTML = `<div class="loading-state">No items found.</div>`;
-        return;
-    }
     mangaList.forEach(manga => {
         try {
             const title = getTitle(manga.attributes);
@@ -189,7 +164,7 @@ function renderMangaCards(mangaList, container) {
             card.onclick = () => { window.location.href = `details.html?id=${manga.id}`; };
             card.innerHTML = `
                 <div class="cover-wrapper">
-                    <img src="${coverUrl}" alt="${title}" loading="lazy" referrerpolicy="no-referrer">
+                    <img src="${coverUrl}" alt="cover" loading="lazy" referrerpolicy="no-referrer">
                 </div>
                 <h3 class="manga-title" title="${title}">${title}</h3>
                 <p class="manga-tags">${genre}</p>
@@ -199,7 +174,6 @@ function renderMangaCards(mangaList, container) {
     });
 }
 
-// INITIALIZE APP
 document.addEventListener('DOMContentLoaded', () => {
     fetchCarouselData('trendingManga', 'originalLanguage[]=ja&order[followedCount]=desc');
     fetchCarouselData('trendingManhwa', 'originalLanguage[]=ko&order[rating]=desc');
