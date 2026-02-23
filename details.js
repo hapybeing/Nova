@@ -1,166 +1,69 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
+const WARRIOR_BASE = 'https://warrior-nova.onrender.com/api/scrape';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
-const urlId = urlParams.get('id');
-const urlTitle = urlParams.get('title');
-
-function getTitle(attributes) {
-    if (attributes.title && attributes.title.en) return attributes.title.en;
-    if (attributes.altTitles && attributes.altTitles.length > 0) {
-        const enTitleObj = attributes.altTitles.find(t => t.en);
-        if (enTitleObj) return enTitleObj.en;
-    }
-    return attributes.title ? (attributes.title[Object.keys(attributes.title)[0]] || 'Unknown Title') : 'Unknown Title';
-}
-
-function getDescription(attributes) {
-    if (!attributes.description) return 'No synopsis available.';
-    return attributes.description.en || Object.values(attributes.description)[0] || 'No synopsis available.';
-}
-
-function getCoverUrl(mangaId, relationships) {
-    const coverRel = relationships.find(rel => rel.type === 'cover_art');
-    if (coverRel && coverRel.attributes && coverRel.attributes.fileName) {
-        return `${UPLOADS_BASE}/covers/${mangaId}/${coverRel.attributes.fileName}`; 
-    }
-    return '';
-}
+const mangaId = urlParams.get('id');
 
 async function loadMangaDetails() {
-    if (!urlId && !urlTitle) {
-        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Error: No Manga Data Provided.</div>`;
-        return;
-    }
-
+    if (!mangaId) return;
     try {
-        let mangaId = urlId;
-        let manga;
+        const infoRes = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
+        const infoData = await infoRes.json();
+        const manga = infoData.data;
+        const title = manga.attributes.title.en || Object.values(manga.attributes.title)[0];
 
-        // ADAPTIVE FIX: If the URL sends a title instead of an ID, we find the official ID automatically.
-        if (!mangaId && urlTitle) {
-            const searchRes = await fetch(`${API_BASE}/manga?title=${encodeURIComponent(urlTitle)}&limit=1&includes[]=cover_art&includes[]=author`);
-            if (!searchRes.ok) throw new Error("MangaDex Search Blocked");
-            const searchData = await searchRes.json();
-            if (!searchData.data || searchData.data.length === 0) throw new Error("Manga not found.");
-            manga = searchData.data[0];
-            mangaId = manga.id;
-        } else {
-            const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
-            if (!infoResponse.ok) throw new Error("MangaDex Info Blocked");
-            const infoData = await infoResponse.json();
-            manga = infoData.data;
-        }
-
+        // 1. Try MangaDex Chapters
+        const feedRes = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
         let chapters = [];
-        const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
-        if (feedResponse.ok) {
-            const feedData = await feedResponse.json();
-            const seen = new Set();
+        if (feedRes.ok) {
+            const feedData = await feedRes.json();
             feedData.data.forEach(c => {
-                if (c.attributes.externalUrl !== null) return;
-                const chapNum = c.attributes.chapter;
-                if (chapNum && seen.has(chapNum)) return;
-                if (chapNum) seen.add(chapNum);
-                chapters.push(c);
+                if (c.attributes.externalUrl) return;
+                chapters.push({ id: c.id, num: c.attributes.chapter, type: 'dex' });
             });
         }
 
-        renderDetails(mangaId, manga, chapters);
-    } catch (error) {
-        console.error(error);
-        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Network Offline or Proxy Blocked.</div>`;
+        // 2. THE FAILSAFE: If Dex is empty, hit the War Cannon (Manganato)
+        if (chapters.length === 0) {
+            const novaRes = await fetch(`${WARRIOR_BASE}/chapters?title=${encodeURIComponent(title)}`);
+            const novaData = await novaRes.json();
+            if (novaData.chapters) {
+                novaData.chapters.forEach(c => {
+                    chapters.push({ id: c.id, num: c.attributes.chapter, type: 'warrior' });
+                });
+            }
+        }
+
+        renderDetails(manga, chapters, title);
+    } catch (e) {
+        detailsMain.innerHTML = `<div class="loading-state">Network Breach. Retrying...</div>`;
     }
 }
 
-function renderDetails(mangaId, manga, chapters) {
-    const title = getTitle(manga.attributes);
-    const description = getDescription(manga.attributes);
-    const coverUrl = getCoverUrl(mangaId, manga.relationships);
+function renderDetails(manga, chapters, title) {
+    const coverRel = manga.relationships.find(rel => rel.type === 'cover_art');
+    const coverUrl = `${UPLOADS_BASE}/covers/${manga.id}/${coverRel.attributes.fileName}`;
     
-    let authorName = 'Unknown Author';
-    const authorRel = manga.relationships.find(rel => rel.type === 'author');
-    if (authorRel && authorRel.attributes && authorRel.attributes.name) authorName = authorRel.attributes.name;
-
-    let library = JSON.parse(localStorage.getItem('nova_library')) || [];
-    let isSaved = library.some(m => m.id === mangaId);
-
-    let chaptersHTML = '';
-    
-    if (chapters.length === 0) {
-        chaptersHTML = `
-            <div class="loading-state" style="text-align: center; padding: 3rem 2rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--glass-border);">
-                <i class="ph ph-lock-key" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
-                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.3rem;">No Chapters Found</h3>
-                <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">This title is highly protected by official publishers or currently has no English scanlations available on our network.</p>
-                <a href="https://google.com/search?q=read+${encodeURIComponent(title)}+manga+online" target="_blank" style="background: var(--accent); color: #fff; padding: 0.8rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: all 0.2s;">
-                    Search Web for Chapters <i class="ph ph-arrow-square-out" style="margin-left: 5px;"></i>
-                </a>
-            </div>
-        `;
-    } else {
-        chaptersHTML = chapters.map(chapter => {
-            const chapNum = chapter.attributes.chapter ? `Chapter ${chapter.attributes.chapter}` : 'Oneshot';
-            const chapTitle = chapter.attributes.title ? `- ${chapter.attributes.title}` : '';
-            return `
-                <div class="chapter-card" onclick="window.location.href='reader.html?chapterId=${chapter.id}'">
-                    <div>
-                        <div class="chapter-number">${chapNum}</div>
-                        <div class="chapter-title">${chapTitle}</div>
-                    </div>
-                    <i class="ph ph-book-open" style="color: var(--text-secondary); font-size: 1.2rem;"></i>
-                </div>
-            `;
-        }).join('');
-    }
+    let chaptersHTML = chapters.map(c => `
+        <div class="chapter-card" onclick="window.location.href='reader.html?type=${c.type}&chapterId=${encodeURIComponent(c.id)}&mangaId=${manga.id}'">
+            <div class="chapter-number">Chapter ${c.num}</div>
+            <i class="ph ph-lightning" style="color:${c.type === 'warrior' ? '#f59e0b' : '#3b82f6'}"></i>
+        </div>
+    `).join('');
 
     detailsMain.innerHTML = `
         <div class="details-container">
-            <div class="details-cover">
-                <div class="details-cover-inner">
-                    <img src="${coverUrl}" alt="cover" referrerpolicy="no-referrer">
-                </div>
-            </div>
+            <img src="${coverUrl}" class="details-cover" referrerpolicy="no-referrer">
             <div class="details-info">
-                <h1 class="details-title">${title}</h1>
-                <div class="details-author">By ${authorName}</div>
-                
-                <button id="saveBtn" class="control-btn" style="margin-bottom: 2rem; background: ${isSaved ? 'var(--accent)' : 'var(--bg-surface)'}; border-color: ${isSaved ? 'var(--accent)' : 'var(--glass-border)'}; padding: 0.8rem 1.5rem;">
-                    <i id="saveBtnIcon" class="ph ${isSaved ? 'ph-bookmark-simple-fill' : 'ph-bookmark-simple'}"></i> 
-                    <span id="saveBtnText">${isSaved ? 'In Library' : 'Save to Library'}</span>
-                </button>
-
-                <p class="details-synopsis">${description}</p>
+                <h1>${title}</h1>
+                <p>${manga.attributes.description.en || 'No synopsis.'}</p>
             </div>
         </div>
         <section class="chapters-section">
-            <h2 class="chapters-header">Chapters</h2>
-            <div class="chapters-grid">
-                ${chaptersHTML}
-            </div>
+            <div class="chapters-grid">${chaptersHTML || 'No sources found across all networks.'}</div>
         </section>
     `;
-
-    document.getElementById('saveBtn').addEventListener('click', () => {
-        let currentLibrary = JSON.parse(localStorage.getItem('nova_library')) || [];
-        const existingIndex = currentLibrary.findIndex(m => m.id === mangaId);
-        
-        if (existingIndex > -1) {
-            currentLibrary.splice(existingIndex, 1);
-            document.getElementById('saveBtnIcon').className = 'ph ph-bookmark-simple';
-            document.getElementById('saveBtnText').innerText = 'Save to Library';
-            document.getElementById('saveBtn').style.background = 'var(--bg-surface)';
-            document.getElementById('saveBtn').style.borderColor = 'var(--glass-border)';
-        } else {
-            currentLibrary.push({ id: mangaId, title: title, coverUrl: coverUrl, lastReadChapterNum: null });
-            document.getElementById('saveBtnIcon').className = 'ph ph-bookmark-simple-fill';
-            document.getElementById('saveBtnText').innerText = 'In Library';
-            document.getElementById('saveBtn').style.background = 'var(--accent)';
-            document.getElementById('saveBtn').style.borderColor = 'var(--accent)';
-        }
-        localStorage.setItem('nova_library', JSON.stringify(currentLibrary));
-    });
 }
-
 document.addEventListener('DOMContentLoaded', loadMangaDetails);
