@@ -130,3 +130,8 @@ body { background-color: var(--bg-oled); color: var(--text-primary); font-family
     .nav-dropdown { left: 10%; transform: translateX(0) translateY(10px); }
     .dropdown-wrapper:hover .nav-dropdown { transform: translateX(0) translateY(0); }
 }
+.details-header { display: flex; gap: 2rem; padding: 2rem; margin-top: 6rem; align-items: flex-start; flex-wrap: wrap; }
+.details-cover-img { width: 220px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+.details-text { flex: 1; min-width: 300px; }
+.details-title { font-size: 2.5rem; margin-bottom: 1rem; }
+.details-synopsis { color: var(--text-secondary); line-height: 1.6; max-height: 200px; overflow-y: auto; }
