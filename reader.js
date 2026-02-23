@@ -1,39 +1,38 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
-    const chapterId = params.get('chapterId');
-    const type = params.get('type'); // 'dex' or 'warrior'
+    const src = params.get('src');
+    const id = params.get('id');
+    const mId = params.get('mangaId');
+    const box = document.getElementById('readerMain') || document.body;
 
-    const container = document.getElementById('readerMain') || document.body;
-    container.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Summoning pages from ${type} server...</div>`;
+    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Initializing ${src.toUpperCase()} Stream...</div>`;
 
     try {
-        let imageUrls = [];
-
-        if (type === 'warrior') {
-            // Ripping from Manganato via Warrior.Nova
-            const res = await fetch(`https://warrior-nova.onrender.com/api/scrape/images?chapterId=${encodeURIComponent(chapterId)}`);
-            const data = await res.json();
-            imageUrls = data.images.map(url => `https://warrior-nova.onrender.com/api/proxy/image?url=${encodeURIComponent(url)}`);
+        let urls = [];
+        if (src === 'warrior') {
+            const d = await (await fetch(`https://warrior-nova.onrender.com/api/scrape/images?chapterId=${id}`)).json();
+            urls = d.images.map(u => `https://warrior-nova.onrender.com/api/proxy/image?url=${encodeURIComponent(u)}`);
         } else {
-            // Fetching from MangaDex
-            const res = await fetch(`/proxy/api/at-home/server/${chapterId}`);
-            const data = await res.json();
-            imageUrls = data.chapter.data.map(img => `/proxy/uploads/data/${data.chapter.hash}/${img}`);
+            const d = await (await fetch(`/proxy/api/at-home/server/${id}`)).json();
+            urls = d.chapter.data.map(i => `/proxy/uploads/data/${d.chapter.hash}/${i}`);
         }
 
-        container.innerHTML = `<div class="reader-pages" style="display:flex; flex-direction:column; align-items:center;"></div>`;
-        const pageBox = container.querySelector('.reader-pages');
-
-        imageUrls.forEach(url => {
+        box.innerHTML = `<div class="reader-pages" style="display:flex; flex-direction:column; align-items:center;"></div>`;
+        const p = box.querySelector('.reader-pages');
+        urls.forEach(u => {
             const img = document.createElement('img');
-            img.src = url;
+            img.src = u;
             img.style.width = "100%";
             img.style.maxWidth = "800px";
-            img.loading = "lazy";
-            pageBox.appendChild(img);
+            p.appendChild(img);
         });
+        
+        // Add a "Back" button at bottom
+        const b = document.createElement('button');
+        b.innerText = "Finish Reading";
+        b.onclick = () => location.href = `details.html?id=${mId}`;
+        b.className = "control-btn";
+        box.appendChild(b);
 
-    } catch (e) {
-        container.innerHTML = `<div class="loading-state" style="color:red;">Bridge Collapse. Try another chapter.</div>`;
-    }
+    } catch (e) { box.innerHTML = "Stream Interrupted."; }
 });
