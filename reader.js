@@ -1,3 +1,5 @@
+const CORS_PROXY = 'https://corsproxy.io/?';
+
 document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
     const chapterHid = params.get('chapterHid');
@@ -9,13 +11,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Ripping High-Res Pages via Bridge...</div>`;
+    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Ripping High-Res Pages via Proxy Network...</div>`;
 
     try {
-        const res = await fetch(`https://warrior-nova.onrender.com/api/comick/images?hid=${chapterHid}`);
+        const targetUrl = `https://api.comick.io/chapter/${chapterHid}`;
+        const res = await fetch(CORS_PROXY + encodeURIComponent(targetUrl));
         const data = await res.json();
         
-        if (!data.chapter || !data.chapter.images) throw new Error("No images returned from API");
+        if (!data.chapter || !data.chapter.images) throw new Error("No images returned");
 
         box.innerHTML = `
             <div style="padding:1rem; position:fixed; top:0; left:0; z-index:100; background: rgba(0,0,0,0.5); width: 100%; backdrop-filter: blur(10px);">
@@ -28,7 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         data.chapter.images.forEach(img => {
             const imgEl = document.createElement('img');
-            imgEl.src = img.url;
+            imgEl.src = img.url; 
             imgEl.style.width = "100%";
             imgEl.style.maxWidth = "800px";
             imgEl.style.display = "block";
@@ -38,6 +41,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (e) {
         console.error(e);
-        box.innerHTML = `<div class="loading-state" style="color:red; margin-top:10rem;">Bridge Connection Severed.</div>`;
+        box.innerHTML = `<div class="loading-state" style="color:red; margin-top:10rem;">Proxy Connection Severed.</div>`;
     }
 });
