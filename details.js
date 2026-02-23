@@ -1,9 +1,13 @@
-const API_BASE = '/proxy/api';
-const UPLOADS_BASE = '/proxy/uploads';
+// Bypassing the local proxy to guarantee direct connection
+const API_BASE = 'https://api.mangadex.org';
+const UPLOADS_BASE = 'https://uploads.mangadex.org';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
+
+// THE ADAPTIVE ROUTER: Grabs whatever app.js decides to send
 const mangaId = urlParams.get('id');
+const mangaTitleParam = urlParams.get('title');
 
 function getTitle(attributes) {
     if (attributes.title && attributes.title.en) return attributes.title.en;
@@ -28,29 +32,43 @@ function getCoverUrl(relationships, id) {
 }
 
 async function loadMangaDetails() {
-    if (!mangaId) {
-        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Error: No Manga ID provided.</div>`;
+    if (!mangaId && !mangaTitleParam) {
+        if (detailsMain) detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Error: No Manga Data Provided in URL.</div>`;
         return;
     }
 
     try {
-        // 1. Fetch official metadata from MangaDex (The Face)
-        const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
-        const infoData = await infoResponse.json();
-        const manga = infoData.data;
+        let manga;
+        let currentId;
+
+        // SMART FETCHING LOGIC
+        if (mangaId) {
+            // If it has an ID, fetch directly
+            const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
+            const infoData = await infoResponse.json();
+            manga = infoData.data;
+            currentId = mangaId;
+        } else if (mangaTitleParam) {
+            // If it has a Title, search MangaDex to find the ID automatically
+            const searchResponse = await fetch(`${API_BASE}/manga?title=${encodeURIComponent(mangaTitleParam)}&limit=1&includes[]=cover_art&includes[]=author`);
+            const searchData = await searchResponse.json();
+            if (!searchData.data || searchData.data.length === 0) throw new Error("Target not found on official database.");
+            manga = searchData.data[0];
+            currentId = manga.id;
+        }
 
         const title = getTitle(manga.attributes);
         const description = getDescription(manga.attributes);
-        const coverUrl = getCoverUrl(manga.relationships, mangaId);
+        const coverUrl = getCoverUrl(manga.relationships, currentId);
         
         let authorName = 'Unknown Author';
         const authorRel = manga.relationships.find(rel => rel.type === 'author');
         if (authorRel && authorRel.attributes && authorRel.attributes.name) authorName = authorRel.attributes.name;
 
-        // UI Update to show the bridge is working
-        detailsMain.innerHTML = `<div class="loading-state">Bridging ${title} with Warrior.Nova...</div>`;
+        // Visual Confirmation the Bridge is working
+        if (detailsMain) detailsMain.innerHTML = `<div class="loading-state">Bridging ${title} with Warrior.Nova...</div>`;
 
-        // 2. Fetch unlimited chapters from YOUR backend using the extracted title (The Muscle)
+        // FIRE UP WARRIOR.NOVA FOR THE CHAPTERS
         let chapters = [];
         try {
             const novaResponse = await fetch(`https://warrior-nova.onrender.com/api/scrape/chapters?title=${encodeURIComponent(title)}`);
@@ -62,11 +80,12 @@ async function loadMangaDetails() {
             console.error("Warrior.Nova fetch failed:", novaError);
         }
 
-        // 3. Render everything together
-        renderDetails(mangaId, title, description, coverUrl, authorName, chapters);
+        // RENDER THE UI
+        renderDetails(currentId, title, description, coverUrl, authorName, chapters);
 
     } catch (error) {
-        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Network Offline.</div>`;
+        console.error(error);
+        if (detailsMain) detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">System Offline or Target Missing.</div>`;
     }
 }
 
@@ -149,4 +168,3 @@ function renderDetails(id, title, description, coverUrl, authorName, chapters) {
 }
 
 document.addEventListener('DOMContentLoaded', loadMangaDetails);
-
