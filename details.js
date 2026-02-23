@@ -21,31 +21,33 @@ async function loadMangaDetails() {
         const manga = info.data;
         const title = manga.attributes.title.en || Object.values(manga.attributes.title)[0];
 
-        // Fetch from Manganato (Warrior)
         const war = await (await fetch(`${WARRIOR_API}/chapters?title=${encodeURIComponent(title)}`)).json();
         const chapters = war.chapters || [];
 
         renderUI(manga, chapters, id, title);
-    } catch (e) { detailsMain.innerHTML = "System Error. Reloading..."; }
+    } catch (e) { detailsMain.innerHTML = "System Error. Please refresh."; }
 }
 
 function renderUI(manga, chapters, id, title) {
-    const cover = manga.relationships.find(r => r.type === 'cover_art').attributes.fileName;
+    const coverFile = manga.relationships.find(r => r.type === 'cover_art').attributes.fileName;
+    const coverUrl = `${UPLOADS_BASE}/covers/${id}/${coverFile}`;
+    
     detailsMain.innerHTML = `
         <div class="details-container">
             <div class="details-header">
-                <img src="${UPLOADS_BASE}/covers/${id}/${cover}" class="details-cover-img">
+                <img src="${coverUrl}" class="details-cover-img" referrerpolicy="no-referrer">
                 <div class="details-text">
                     <h1 class="details-title">${title}</h1>
                     <p class="details-synopsis">${manga.attributes.description.en || 'No synopsis.'}</p>
                 </div>
             </div>
+            <h2 style="margin: 2rem 0 1rem; padding: 0 2rem;">Chapters</h2>
             <div class="chapters-grid">
-                ${chapters.map(c => `
-                    <div class="chapter-card" onclick="location.href='reader.html?src=warrior&id=${encodeURIComponent(c.id)}&mangaId=${id}'">
+                ${chapters.length > 0 ? chapters.map(c => `
+                    <div class="chapter-card" onclick="location.href='reader.html?id=${encodeURIComponent(c.id)}&mangaId=${id}'">
                         Chapter ${c.num}
                     </div>
-                `).join('')}
+                `).join('') : '<p style="padding: 2rem;">Searching all libraries... No chapters found yet.</p>'}
             </div>
         </div>`;
 }
