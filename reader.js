@@ -9,14 +9,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:var(--text-primary);">Loading official pages from MangaDex...</div>`;
+    readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:var(--text-primary);">Decrypting official pages through Proxy...</div>`;
 
     try {
         const response = await fetch(`/proxy/api/at-home/server/${chapterId}`);
         if (!response.ok) throw new Error("Failed to fetch chapter data.");
         const data = await response.json();
 
-        const baseUrl = data.baseUrl;
         const hash = data.chapter.hash;
         const pages = data.chapter.data; 
 
@@ -24,7 +23,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const pagesContainer = readerContainer.querySelector('.reader-pages');
         
         pages.forEach((page, index) => {
-            const imgUrl = `${baseUrl}/data/${hash}/${page}`;
+            // THE ISP BYPASS: Forcing the image through your Vercel proxy instead of the blocked network!
+            const imgUrl = `/proxy/uploads/data/${hash}/${page}`;
             const img = document.createElement('img');
             
             img.src = imgUrl;
@@ -38,6 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     } catch (error) {
         console.error("MangaDex connection failed:", error);
-        readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:#ef4444;">Failed to load pages. The chapter might be external or servers are busy.</div>`;
+        readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:#ef4444;">Failed to load pages through the proxy network.</div>`;
     }
 });
