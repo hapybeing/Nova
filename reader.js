@@ -1,89 +1,44 @@
-const API_BASE = '/proxy/api';
+document.addEventListener("DOMContentLoaded", async () => {
+    // 1. Grab the secret chapter ID from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const chapterId = urlParams.get('chapterId');
 
-const urlParams = new URLSearchParams(window.location.search);
-const chapterId = urlParams.get('chapterId');
-const mangaId = urlParams.get('id');
+    // Make sure your HTML has a div with id="reader-container"
+    const readerContainer = document.getElementById('reader-container');
 
-const readerContainer = document.getElementById('readerContainer');
-const readerChapterTitle = document.getElementById('readerChapterTitle');
-const backBtn = document.getElementById('backBtn');
-const readerControls = document.getElementById('readerControls');
-const prevBtn = document.getElementById('prevBtn');
-const nextBtn = document.getElementById('nextBtn');
-const chapterSelect = document.getElementById('chapterSelect');
-
-let allChapters = [];
-let currentIndex = -1;
-
-backBtn.addEventListener('click', () => {
-    if (mangaId) window.location.href = `details.html?id=${mangaId}`;
-    else window.history.back();
-});
-
-async function loadReader() {
-    if (!chapterId || !mangaId) return;
-
-    const cachedData = sessionStorage.getItem(`nova_chapters_${mangaId}`);
-    if (cachedData) {
-        const parsed = JSON.parse(cachedData);
-        allChapters = parsed.chapters;
+    if (!chapterId) {
+        readerContainer.innerHTML = "<p>Error: No chapter ID provided in URL.</p>";
+        return;
     }
+
+    readerContainer.innerHTML = "<p>Ripping high-res pages from Warrior.Nova...</p>";
 
     try {
-        readerContainer.innerHTML = ''; 
-        const response = await fetch(`${API_BASE}/at-home/server/${chapterId}`);
+        // 2. Call your custom backend for the images!
+        const response = await fetch(`https://warrior-nova.onrender.com/api/scrape/images?chapterId=${encodeURIComponent(chapterId)}`);
         const data = await response.json();
-        
-        data.chapter.data.forEach(img => {
-            const imgEl = document.createElement('img');
-            imgEl.src = `${data.baseUrl}/data/${data.chapter.hash}/${img}`;
-            imgEl.className = 'reader-page';
-            imgEl.loading = 'lazy';
-            imgEl.setAttribute('referrerpolicy', 'no-referrer');
-            readerContainer.appendChild(imgEl);
-        });
 
-        if (allChapters.length > 0) setupNavigation();
-
-    } catch (error) {
-        readerContainer.innerHTML = `<div class="loading-state" style="color: #ef4444;">Failed to load images.</div>`;
-    }
-}
-
-function setupNavigation() {
-    readerControls.style.display = 'flex';
-    currentIndex = allChapters.findIndex(c => c.id === chapterId);
-    
-    if (allChapters[currentIndex]) {
-        const currentChapNum = allChapters[currentIndex].attributes.chapter ? `Chapter ${allChapters[currentIndex].attributes.chapter}` : 'Oneshot';
-        readerChapterTitle.innerText = currentChapNum;
-
-        // SAVE PROGRESS TO LIBRARY
-        let library = JSON.parse(localStorage.getItem('nova_library')) || [];
-        let savedIndex = library.findIndex(m => m.id === mangaId);
-        if(savedIndex !== -1) {
-            library[savedIndex].lastReadChapterNum = allChapters[currentIndex].attributes.chapter || 'Oneshot';
-            localStorage.setItem('nova_library', JSON.stringify(library));
+        if (data.images && data.images.length > 0) {
+            readerContainer.innerHTML = ""; // Clear the loading text
+            
+            // 3. Render every single page
+            data.images.forEach((imgUrl, index) => {
+                const img = document.createElement('img');
+                img.src = imgUrl;
+                img.alt = `Page ${index + 1}`;
+                img.loading = "lazy"; // Prevents the browser from crashing by loading them as you scroll
+                img.style.width = "100%"; // Basic styling to fit mobile screens
+                img.style.maxWidth = "800px";
+                img.style.display = "block";
+                img.style.margin = "0 auto 10px auto"; // Centers the images
+                
+                readerContainer.appendChild(img);
+            });
+        } else {
+            readerContainer.innerHTML = "<p>No pages found for this chapter.</p>";
         }
+    } catch (error) {
+        console.error("Warrior.Nova connection failed:", error);
+        readerContainer.innerHTML = "<p>Failed to connect to the backend server.</p>";
     }
-
-    chapterSelect.innerHTML = allChapters.map((c, index) => {
-        const num = c.attributes.chapter ? `Chapter ${c.attributes.chapter}` : 'Oneshot';
-        return `<option value="${c.id}" ${index === currentIndex ? 'selected' : ''}>${num}</option>`;
-    }).join('');
-
-    if (currentIndex > 0) {
-        nextBtn.disabled = false;
-        nextBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex - 1].id}`;
-    }
-    if (currentIndex < allChapters.length - 1) {
-        prevBtn.disabled = false;
-        prevBtn.onclick = () => window.location.href = `reader.html?id=${mangaId}&chapterId=${allChapters[currentIndex + 1].id}`;
-    }
-
-    chapterSelect.addEventListener('change', (e) => {
-        window.location.href = `reader.html?id=${mangaId}&chapterId=${e.target.value}`;
-    });
-}
-
-document.addEventListener('DOMContentLoaded', loadReader);
+});
