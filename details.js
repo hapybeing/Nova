@@ -1,6 +1,6 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-const COMICK_BRIDGE = 'https://warrior-nova.onrender.com/api/comick';
+const CORS_PROXY = 'https://corsproxy.io/?';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -32,17 +32,18 @@ async function loadMangaDetails() {
         const cleanTitle = mainTitleEn.replace(/[^a-zA-Z0-9 ]/g, "").trim();
         if (!searchQueries.includes(cleanTitle)) searchQueries.push(cleanTitle);
 
-        // 2. FIRE THROUGH THE BRIDGE
+        // 2. SMASH THE WALL WITH THE CORS PROXY
         let chapters = [];
         let comicHid = null;
 
-        detailsMain.innerHTML = `<div class="loading-state" style="margin-top: 10rem;">Bypassing security... Hunting aliases...</div>`;
+        detailsMain.innerHTML = `<div class="loading-state" style="margin-top: 10rem;">Smashing Cloudflare... Hunting aliases...</div>`;
 
         for (let query of searchQueries) {
             if (!query) continue;
             try {
-                // Hitting YOUR backend to avoid Browser CORS blocks
-                const searchReq = await fetch(`${COMICK_BRIDGE}/search?q=${encodeURIComponent(query)}`);
+                // Wrap the official API in the proxy sledgehammer
+                const targetUrl = `https://api.comick.io/v1.0/search?q=${encodeURIComponent(query)}&limit=1`;
+                const searchReq = await fetch(CORS_PROXY + encodeURIComponent(targetUrl));
                 const searchData = await searchReq.json();
                 
                 if (searchData && searchData.length > 0) {
@@ -54,7 +55,8 @@ async function loadMangaDetails() {
 
         // 3. EXTRACT CHAPTERS
         if (comicHid) {
-            const chapReq = await fetch(`${COMICK_BRIDGE}/chapters?hid=${comicHid}`);
+            const targetChap = `https://api.comick.io/comic/${comicHid}/chapters?lang=en&limit=500`;
+            const chapReq = await fetch(CORS_PROXY + encodeURIComponent(targetChap));
             const chapData = await chapReq.json();
             if (chapData.chapters) {
                 chapters = chapData.chapters.map(c => ({
@@ -67,7 +69,7 @@ async function loadMangaDetails() {
         renderUI(manga, chapters, id, mainTitleEn);
 
     } catch (e) { 
-        detailsMain.innerHTML = `<div style="text-align:center; padding:5rem; color:#ef4444;">Bridge Connection Severed.</div>`; 
+        detailsMain.innerHTML = `<div style="text-align:center; padding:5rem; color:#ef4444;">Proxy Shattered. Target unreachable.</div>`; 
     }
 }
 
@@ -91,7 +93,7 @@ function renderUI(manga, chapters, id, title) {
                     <div class="chapter-card" onclick="location.href='reader.html?chapterHid=${encodeURIComponent(c.id)}&mangaId=${id}'">
                         Chapter ${c.num}
                     </div>
-                `).join('') : '<div style="grid-column: 1 / -1; padding: 2rem; background: var(--bg-surface); border-radius: 12px; text-align: center; border: 1px solid var(--glass-border);">Target completely evaded all sweeps.</div>'}
+                `).join('') : '<div style="grid-column: 1 / -1; padding: 2rem; background: var(--bg-surface); border-radius: 12px; text-align: center; border: 1px solid var(--glass-border);">Target evaded all brute-force sweeps.</div>'}
             </div>
         </div>`;
 }
