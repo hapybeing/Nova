@@ -1,23 +1,19 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
-    const src = params.get('src');
     const id = params.get('id');
     const mId = params.get('mangaId');
     const box = document.getElementById('readerMain') || document.body;
 
-    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Initializing ${src.toUpperCase()} Stream...</div>`;
+    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Ripping pages from Warrior Server...</div>`;
 
     try {
-        let urls = [];
-        if (src === 'warrior') {
-            const d = await (await fetch(`https://warrior-nova.onrender.com/api/scrape/images?chapterId=${id}`)).json();
-            urls = d.images.map(u => `https://warrior-nova.onrender.com/api/proxy/image?url=${encodeURIComponent(u)}`);
-        } else {
-            const d = await (await fetch(`/proxy/api/at-home/server/${id}`)).json();
-            urls = d.chapter.data.map(i => `/proxy/uploads/data/${d.chapter.hash}/${i}`);
-        }
+        const d = await (await fetch(`https://warrior-nova.onrender.com/api/scrape/images?chapterId=${id}`)).json();
+        const urls = d.images.map(u => `https://warrior-nova.onrender.com/api/proxy/image?url=${encodeURIComponent(u)}`);
 
-        box.innerHTML = `<div class="reader-pages" style="display:flex; flex-direction:column; align-items:center;"></div>`;
+        box.innerHTML = `
+            <div style="padding:1rem;"><button onclick="location.href='details.html?id=${mId}'" class="control-btn">← Back</button></div>
+            <div class="reader-pages" style="display:flex; flex-direction:column; align-items:center;"></div>
+        `;
         const p = box.querySelector('.reader-pages');
         urls.forEach(u => {
             const img = document.createElement('img');
@@ -26,6 +22,5 @@ document.addEventListener("DOMContentLoaded", async () => {
             img.style.maxWidth = "800px";
             p.appendChild(img);
         });
-        
-    } catch (e) { box.innerHTML = "Stream Interrupted."; }
+    } catch (e) { box.innerHTML = "Bridge Failed."; }
 });
