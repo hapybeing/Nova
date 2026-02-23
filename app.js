@@ -89,7 +89,8 @@ searchInput.addEventListener('input', (e) => {
                         <span class="dropdown-meta" style="text-transform: capitalize;">${status}</span>
                     </div>
                 `;
-                item.addEventListener('click', () => { window.location.href = `details.html?id=${manga.id}`; });
+                // THE FIX: Pass the title instead of the ID from the search bar
+                item.addEventListener('click', () => { window.location.href = `details.html?title=${encodeURIComponent(title)}`; });
                 searchDropdown.appendChild(item);
             });
         } catch (error) {
@@ -164,7 +165,6 @@ function renderMangaCards(mangaList, container, applyStrictFilter = true) {
                 return; 
             }
 
-            // Cap the rendering to 15 items so the UI stays clean even if we fetched 35
             if (renderedCount >= 15 && container.classList.contains('carousel-container')) return;
 
             const title = getTitle(manga.attributes);
@@ -177,7 +177,10 @@ function renderMangaCards(mangaList, container, applyStrictFilter = true) {
 
             const card = document.createElement('div');
             card.className = 'manga-card';
-            card.onclick = () => { window.location.href = `details.html?id=${manga.id}`; };
+            
+            // THE FIX: Pass the title instead of the ID from the homepage carousels
+            card.onclick = () => { window.location.href = `details.html?title=${encodeURIComponent(title)}`; };
+            
             card.innerHTML = `
                 <div class="cover-wrapper">
                     <img src="${coverUrl}" alt="cover" loading="lazy" referrerpolicy="no-referrer">
