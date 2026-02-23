@@ -1,4 +1,4 @@
-const CORS_PROXY = 'https://corsproxy.io/?';
+const COMICK_BASE = '/proxy/comick'; // The Vercel Edge Proxy
 
 document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
@@ -11,11 +11,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Ripping High-Res Pages via Proxy Network...</div>`;
+    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Ripping High-Res Pages via Vercel Edge...</div>`;
 
     try {
-        const targetUrl = `https://api.comick.io/chapter/${chapterHid}`;
-        const res = await fetch(CORS_PROXY + encodeURIComponent(targetUrl));
+        const res = await fetch(`${COMICK_BASE}/chapter/${chapterHid}`);
+        if (!res.ok) throw new Error("Edge Network Blocked");
         const data = await res.json();
         
         if (!data.chapter || !data.chapter.images) throw new Error("No images returned");
@@ -41,6 +41,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (e) {
         console.error(e);
-        box.innerHTML = `<div class="loading-state" style="color:red; margin-top:10rem;">Proxy Connection Severed.</div>`;
+        box.innerHTML = `<div class="loading-state" style="color:red; margin-top:10rem;">Edge Connection Severed.</div>`;
     }
 });
