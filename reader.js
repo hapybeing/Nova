@@ -27,12 +27,5 @@ document.addEventListener("DOMContentLoaded", async () => {
             p.appendChild(img);
         });
         
-        // Add a "Back" button at bottom
-        const b = document.createElement('button');
-        b.innerText = "Finish Reading";
-        b.onclick = () => location.href = `details.html?id=${mId}`;
-        b.className = "control-btn";
-        box.appendChild(b);
-
     } catch (e) { box.innerHTML = "Stream Interrupted."; }
 });
