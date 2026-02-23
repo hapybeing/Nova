@@ -3,7 +3,8 @@ const UPLOADS_BASE = '/proxy/uploads';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
-const mangaId = urlParams.get('id');
+const urlId = urlParams.get('id');
+const urlTitle = urlParams.get('title');
 
 function getTitle(attributes) {
     if (attributes.title && attributes.title.en) return attributes.title.en;
@@ -19,7 +20,7 @@ function getDescription(attributes) {
     return attributes.description.en || Object.values(attributes.description)[0] || 'No synopsis available.';
 }
 
-function getCoverUrl(relationships) {
+function getCoverUrl(mangaId, relationships) {
     const coverRel = relationships.find(rel => rel.type === 'cover_art');
     if (coverRel && coverRel.attributes && coverRel.attributes.fileName) {
         return `${UPLOADS_BASE}/covers/${mangaId}/${coverRel.attributes.fileName}`; 
@@ -28,12 +29,29 @@ function getCoverUrl(relationships) {
 }
 
 async function loadMangaDetails() {
-    if (!mangaId) return;
+    if (!urlId && !urlTitle) {
+        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Error: No Manga Data Provided.</div>`;
+        return;
+    }
 
     try {
-        const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
-        const infoData = await infoResponse.json();
-        const manga = infoData.data;
+        let mangaId = urlId;
+        let manga;
+
+        // ADAPTIVE FIX: If the URL sends a title instead of an ID, we find the official ID automatically.
+        if (!mangaId && urlTitle) {
+            const searchRes = await fetch(`${API_BASE}/manga?title=${encodeURIComponent(urlTitle)}&limit=1&includes[]=cover_art&includes[]=author`);
+            if (!searchRes.ok) throw new Error("MangaDex Search Blocked");
+            const searchData = await searchRes.json();
+            if (!searchData.data || searchData.data.length === 0) throw new Error("Manga not found.");
+            manga = searchData.data[0];
+            mangaId = manga.id;
+        } else {
+            const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
+            if (!infoResponse.ok) throw new Error("MangaDex Info Blocked");
+            const infoData = await infoResponse.json();
+            manga = infoData.data;
+        }
 
         let chapters = [];
         const feedResponse = await fetch(`${API_BASE}/manga/${mangaId}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
@@ -49,16 +67,17 @@ async function loadMangaDetails() {
             });
         }
 
-        renderDetails(manga, chapters);
+        renderDetails(mangaId, manga, chapters);
     } catch (error) {
-        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Network Offline.</div>`;
+        console.error(error);
+        detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Network Offline or Proxy Blocked.</div>`;
     }
 }
 
-function renderDetails(manga, chapters) {
+function renderDetails(mangaId, manga, chapters) {
     const title = getTitle(manga.attributes);
     const description = getDescription(manga.attributes);
-    const coverUrl = getCoverUrl(manga.relationships);
+    const coverUrl = getCoverUrl(mangaId, manga.relationships);
     
     let authorName = 'Unknown Author';
     const authorRel = manga.relationships.find(rel => rel.type === 'author');
@@ -145,4 +164,3 @@ function renderDetails(manga, chapters) {
 }
 
 document.addEventListener('DOMContentLoaded', loadMangaDetails);
-
