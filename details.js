@@ -1,5 +1,6 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
+const COMICK_BRIDGE = 'https://warrior-nova.onrender.com/api/comick';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -20,57 +21,41 @@ async function loadMangaDetails() {
         const manga = info.data;
         const mainTitleEn = manga.attributes.title.en || Object.values(manga.attributes.title)[0];
 
-        // ==========================================
-        // 1. BUILD THE ALIAS WARHEAD
-        // ==========================================
+        // 1. THE ALIAS WARHEAD
         let searchQueries = [mainTitleEn];
-        
-        // Extract every single alternate title (Korean, Japanese Romaji, etc.)
         if (manga.attributes.altTitles && manga.attributes.altTitles.length > 0) {
             manga.attributes.altTitles.forEach(alt => {
                 const altName = Object.values(alt)[0];
-                if (altName && !searchQueries.includes(altName)) {
-                    searchQueries.push(altName);
-                }
+                if (altName && !searchQueries.includes(altName)) searchQueries.push(altName);
             });
         }
-
-        // Add a "cleaned" version of the main title (strips punctuation)
         const cleanTitle = mainTitleEn.replace(/[^a-zA-Z0-9 ]/g, "").trim();
         if (!searchQueries.includes(cleanTitle)) searchQueries.push(cleanTitle);
 
-        // ==========================================
-        // 2. AGGRESSIVE MULTI-SEARCH LOOP
-        // ==========================================
+        // 2. FIRE THROUGH THE BRIDGE
         let chapters = [];
         let comicHid = null;
 
-        detailsMain.innerHTML = `<div class="loading-state" style="margin-top: 10rem;">Hunting target across aliases...</div>`;
+        detailsMain.innerHTML = `<div class="loading-state" style="margin-top: 10rem;">Bypassing security... Hunting aliases...</div>`;
 
         for (let query of searchQueries) {
             if (!query) continue;
             try {
-                // Fire a search request for each alias
-                const comickSearch = await fetch(`https://api.comick.io/v1.0/search?q=${encodeURIComponent(query)}&limit=1`);
-                const searchData = await comickSearch.json();
+                // Hitting YOUR backend to avoid Browser CORS blocks
+                const searchReq = await fetch(`${COMICK_BRIDGE}/search?q=${encodeURIComponent(query)}`);
+                const searchData = await searchReq.json();
                 
-                if (searchData.length > 0) {
+                if (searchData && searchData.length > 0) {
                     comicHid = searchData[0].hid;
-                    console.log(`Target locked using alias: ${query}`);
-                    break; // Target found. Terminate loop.
+                    break; 
                 }
-            } catch (err) { 
-                continue; // If a query fails, immediately try the next one.
-            }
+            } catch (err) { continue; }
         }
 
-        // ==========================================
         // 3. EXTRACT CHAPTERS
-        // ==========================================
         if (comicHid) {
-            const chapRes = await fetch(`https://api.comick.io/comic/${comicHid}/chapters?lang=en&limit=500`);
-            const chapData = await chapRes.json();
-            
+            const chapReq = await fetch(`${COMICK_BRIDGE}/chapters?hid=${comicHid}`);
+            const chapData = await chapReq.json();
             if (chapData.chapters) {
                 chapters = chapData.chapters.map(c => ({
                     id: c.hid,
@@ -82,8 +67,7 @@ async function loadMangaDetails() {
         renderUI(manga, chapters, id, mainTitleEn);
 
     } catch (e) { 
-        console.error(e);
-        detailsMain.innerHTML = `<div style="text-align:center; padding:5rem; color:#ef4444;">System Error. The target could not be parsed.</div>`; 
+        detailsMain.innerHTML = `<div style="text-align:center; padding:5rem; color:#ef4444;">Bridge Connection Severed.</div>`; 
     }
 }
 
@@ -107,7 +91,7 @@ function renderUI(manga, chapters, id, title) {
                     <div class="chapter-card" onclick="location.href='reader.html?chapterHid=${encodeURIComponent(c.id)}&mangaId=${id}'">
                         Chapter ${c.num}
                     </div>
-                `).join('') : '<div style="grid-column: 1 / -1; padding: 2rem; background: var(--bg-surface); border-radius: 12px; text-align: center; border: 1px solid var(--glass-border);">Target evaded all alias sweeps. No chapters available.</div>'}
+                `).join('') : '<div style="grid-column: 1 / -1; padding: 2rem; background: var(--bg-surface); border-radius: 12px; text-align: center; border: 1px solid var(--glass-border);">Target completely evaded all sweeps.</div>'}
             </div>
         </div>`;
 }
