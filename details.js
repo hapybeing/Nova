@@ -1,11 +1,10 @@
-// Bypassing the local proxy to guarantee direct connection
-const API_BASE = 'https://api.mangadex.org';
-const UPLOADS_BASE = 'https://uploads.mangadex.org';
+const API_BASE = '/proxy/api';
+const UPLOADS_BASE = '/proxy/uploads';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
 
-// THE ADAPTIVE ROUTER: Grabs whatever app.js decides to send
+// THE ADAPTIVE ROUTER
 const mangaId = urlParams.get('id');
 const mangaTitleParam = urlParams.get('title');
 
@@ -33,7 +32,7 @@ function getCoverUrl(relationships, id) {
 
 async function loadMangaDetails() {
     if (!mangaId && !mangaTitleParam) {
-        if (detailsMain) detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">Error: No Manga Data Provided in URL.</div>`;
+        if (detailsMain) detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444; margin-top: 10rem;">Error: No Manga Data Provided.</div>`;
         return;
     }
 
@@ -41,16 +40,16 @@ async function loadMangaDetails() {
         let manga;
         let currentId;
 
-        // SMART FETCHING LOGIC
+        // SMART FETCHING LOGIC (Bypassing the ISP Block)
         if (mangaId) {
-            // If it has an ID, fetch directly
             const infoResponse = await fetch(`${API_BASE}/manga/${mangaId}?includes[]=cover_art&includes[]=author`);
+            if (!infoResponse.ok) throw new Error("MangaDex Proxy Blocked");
             const infoData = await infoResponse.json();
             manga = infoData.data;
             currentId = mangaId;
         } else if (mangaTitleParam) {
-            // If it has a Title, search MangaDex to find the ID automatically
             const searchResponse = await fetch(`${API_BASE}/manga?title=${encodeURIComponent(mangaTitleParam)}&limit=1&includes[]=cover_art&includes[]=author`);
+            if (!searchResponse.ok) throw new Error("MangaDex Proxy Blocked");
             const searchData = await searchResponse.json();
             if (!searchData.data || searchData.data.length === 0) throw new Error("Target not found on official database.");
             manga = searchData.data[0];
@@ -65,8 +64,15 @@ async function loadMangaDetails() {
         const authorRel = manga.relationships.find(rel => rel.type === 'author');
         if (authorRel && authorRel.attributes && authorRel.attributes.name) authorName = authorRel.attributes.name;
 
-        // Visual Confirmation the Bridge is working
-        if (detailsMain) detailsMain.innerHTML = `<div class="loading-state">Bridging ${title} with Warrior.Nova...</div>`;
+        // VISUAL WAKE-UP CONFIRMATION (With margin-top so it doesn't hide!)
+        if (detailsMain) {
+            detailsMain.innerHTML = `
+                <div class="loading-state" style="margin-top: 10rem; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                    <span style="color: var(--text-primary); font-weight: bold;">Bridging ${title} with Warrior.Nova...</span>
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">(This may take up to 50s if the server is waking up)</span>
+                </div>
+            `;
+        }
 
         // FIRE UP WARRIOR.NOVA FOR THE CHAPTERS
         let chapters = [];
@@ -85,7 +91,7 @@ async function loadMangaDetails() {
 
     } catch (error) {
         console.error(error);
-        if (detailsMain) detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444;">System Offline or Target Missing.</div>`;
+        if (detailsMain) detailsMain.innerHTML = `<div class="loading-state" style="color:#ef4444; margin-top: 10rem;">System Offline or Blocked by ISP.</div>`;
     }
 }
 
