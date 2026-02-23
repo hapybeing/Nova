@@ -9,35 +9,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:var(--text-primary);">Decrypting high-res pages via Warrior Proxy...</div>`;
+    readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:var(--text-primary);">Loading official pages from MangaDex...</div>`;
 
     try {
-        const response = await fetch(`https://warrior-nova.onrender.com/api/scrape/images?chapterId=${encodeURIComponent(chapterId)}`);
+        const response = await fetch(`/proxy/api/at-home/server/${chapterId}`);
+        if (!response.ok) throw new Error("Failed to fetch chapter data.");
         const data = await response.json();
 
-        if (data.images && data.images.length > 0) {
-            readerContainer.innerHTML = `<div class="reader-pages" style="display:flex; flex-direction:column; align-items:center; width:100%;"></div>`;
-            const pagesContainer = readerContainer.querySelector('.reader-pages');
+        const baseUrl = data.baseUrl;
+        const hash = data.chapter.hash;
+        const pages = data.chapter.data; 
+
+        readerContainer.innerHTML = `<div class="reader-pages" style="display:flex; flex-direction:column; align-items:center; width:100%;"></div>`;
+        const pagesContainer = readerContainer.querySelector('.reader-pages');
+        
+        pages.forEach((page, index) => {
+            const imgUrl = `${baseUrl}/data/${hash}/${page}`;
+            const img = document.createElement('img');
             
-            data.images.forEach((imgUrl, index) => {
-                const img = document.createElement('img');
-                
-                // THE FIX: Wrap every single image in the Proxy Shield!
-                img.src = `https://warrior-nova.onrender.com/api/proxy/image?url=${encodeURIComponent(imgUrl)}`;
-                
-                img.alt = `Page ${index + 1}`;
-                img.loading = "lazy"; 
-                img.style.width = "100%"; 
-                img.style.maxWidth = "800px"; 
-                img.style.display = "block";
-                
-                pagesContainer.appendChild(img);
-            });
-        } else {
-            readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:#ef4444;">No pages found for this chapter.</div>`;
-        }
+            img.src = imgUrl;
+            img.alt = `Page ${index + 1}`;
+            img.loading = "lazy"; 
+            img.style.width = "100%"; 
+            img.style.maxWidth = "800px"; 
+            img.style.display = "block";
+            
+            pagesContainer.appendChild(img);
+        });
     } catch (error) {
-        console.error("Warrior.Nova connection failed:", error);
-        readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:#ef4444;">Failed to connect to the backend server.</div>`;
+        console.error("MangaDex connection failed:", error);
+        readerContainer.innerHTML = `<div style="text-align:center; padding: 5rem; color:#ef4444;">Failed to load pages. The chapter might be external or servers are busy.</div>`;
     }
 });
