@@ -2,14 +2,14 @@ const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
 const WARRIOR_API = 'https://warrior-nova.onrender.com/api/scrape';
 
+const detailsMain = document.getElementById('detailsMain');
+const urlParams = new URLSearchParams(window.location.search);
+
 async function loadMangaDetails() {
-    const params = new URLSearchParams(window.location.search);
-    const mangaId = params.get('id');
-    const urlTitle = params.get('title');
-    const container = document.getElementById('detailsMain');
+    const mangaId = urlParams.get('id');
+    const urlTitle = urlParams.get('title');
 
     try {
-        // 1. Resolve ID from Title if needed (for those cached links)
         let id = mangaId;
         if (!id && urlTitle) {
             const s = await fetch(`${API_BASE}/manga?title=${encodeURIComponent(urlTitle)}&limit=1`);
@@ -18,40 +18,35 @@ async function loadMangaDetails() {
         }
 
         const info = await (await fetch(`${API_BASE}/manga/${id}?includes[]=cover_art`)).json();
-        const title = info.data.attributes.title.en || Object.values(info.data.attributes.title)[0];
+        const manga = info.data;
+        const title = manga.attributes.title.en || Object.values(manga.attributes.title)[0];
 
-        // 2. Multi-Source Chapter Fetch
-        let chapters = [];
-        // Try Dex
-        const dex = await fetch(`${API_BASE}/manga/${id}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=500`);
-        const dexData = await dex.json();
-        dexData.data.forEach(c => {
-            if (!c.attributes.externalUrl) chapters.push({ id: c.id, num: c.attributes.chapter, src: 'dex' });
-        });
+        // Fetch from Manganato (Warrior)
+        const war = await (await fetch(`${WARRIOR_API}/chapters?title=${encodeURIComponent(title)}`)).json();
+        const chapters = war.chapters || [];
 
-        // Failover to Warrior (Manganato)
-        if (chapters.length === 0) {
-            const war = await (await fetch(`${WARRIOR_API}/chapters?title=${encodeURIComponent(title)}`)).json();
-            if (war.chapters) war.chapters.forEach(c => chapters.push({ id: c.id, num: c.num, src: 'warrior' }));
-        }
-
-        renderUI(info.data, chapters, id);
-    } catch (e) { container.innerHTML = "Breach detected. Refreshing..."; }
+        renderUI(manga, chapters, id, title);
+    } catch (e) { detailsMain.innerHTML = "System Error. Reloading..."; }
 }
 
-function renderUI(manga, chapters, id) {
+function renderUI(manga, chapters, id, title) {
     const cover = manga.relationships.find(r => r.type === 'cover_art').attributes.fileName;
-    document.getElementById('detailsMain').innerHTML = `
+    detailsMain.innerHTML = `
         <div class="details-container">
-            <img src="${UPLOADS_BASE}/covers/${id}/${cover}" class="details-cover">
-            <h1>${manga.attributes.title.en || 'Manga'}</h1>
-        </div>
-        <div class="chapters-grid">
-            ${chapters.map(c => `
-                <div class="chapter-card" onclick="location.href='reader.html?src=${c.src}&id=${encodeURIComponent(c.id)}&mangaId=${id}'">
-                    Chapter ${c.num} ${c.src === 'warrior' ? '⚡' : '🛡️'}
+            <div class="details-header">
+                <img src="${UPLOADS_BASE}/covers/${id}/${cover}" class="details-cover-img">
+                <div class="details-text">
+                    <h1 class="details-title">${title}</h1>
+                    <p class="details-synopsis">${manga.attributes.description.en || 'No synopsis.'}</p>
                 </div>
-            `).join('')}
+            </div>
+            <div class="chapters-grid">
+                ${chapters.map(c => `
+                    <div class="chapter-card" onclick="location.href='reader.html?src=warrior&id=${encodeURIComponent(c.id)}&mangaId=${id}'">
+                        Chapter ${c.num}
+                    </div>
+                `).join('')}
+            </div>
         </div>`;
 }
 loadMangaDetails();
