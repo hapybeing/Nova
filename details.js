@@ -1,6 +1,5 @@
 const API_BASE = '/proxy/api';
 const UPLOADS_BASE = '/proxy/uploads';
-const WARRIOR_API = 'https://warrior-nova.onrender.com/api/scrape';
 
 const detailsMain = document.getElementById('detailsMain');
 const urlParams = new URLSearchParams(window.location.search);
@@ -10,6 +9,7 @@ async function loadMangaDetails() {
     const urlTitle = urlParams.get('title');
 
     try {
+        // 1. Get official metadata from MangaDex (For the beautiful covers)
         let id = mangaId;
         if (!id && urlTitle) {
             const s = await fetch(`${API_BASE}/manga?title=${encodeURIComponent(urlTitle)}&limit=1`);
@@ -21,34 +21,58 @@ async function loadMangaDetails() {
         const manga = info.data;
         const title = manga.attributes.title.en || Object.values(manga.attributes.title)[0];
 
-        const war = await (await fetch(`${WARRIOR_API}/chapters?title=${encodeURIComponent(title)}`)).json();
-        const chapters = war.chapters || [];
+        // 2. THE HOLY GRAIL: COMICK API (Bypasses all Cloudflare blocks)
+        let chapters = [];
+        try {
+            const comickSearch = await fetch(`https://api.comick.io/v1.0/search?q=${encodeURIComponent(title)}&limit=1`);
+            const searchData = await comickSearch.json();
+
+            if (searchData.length > 0) {
+                const comicHid = searchData[0].hid;
+                const chapRes = await fetch(`https://api.comick.io/comic/${comicHid}/chapters?lang=en&limit=500`);
+                const chapData = await chapRes.json();
+                
+                if (chapData.chapters) {
+                    chapters = chapData.chapters.map(c => ({
+                        id: c.hid,
+                        num: c.chap || 'Oneshot'
+                    }));
+                }
+            }
+        } catch (err) {
+            console.error("ComicK Database unreachable:", err);
+        }
 
         renderUI(manga, chapters, id, title);
-    } catch (e) { detailsMain.innerHTML = "System Error. Please refresh."; }
+    } catch (e) { 
+        detailsMain.innerHTML = `<div style="text-align:center; padding:5rem; color:red;">System Error. Reload the page.</div>`; 
+    }
 }
 
 function renderUI(manga, chapters, id, title) {
     const coverFile = manga.relationships.find(r => r.type === 'cover_art').attributes.fileName;
     const coverUrl = `${UPLOADS_BASE}/covers/${id}/${coverFile}`;
     
+    // Fixing the UI layout directly in the HTML so it can't break
     detailsMain.innerHTML = `
-        <div class="details-container">
-            <div class="details-header">
-                <img src="${coverUrl}" class="details-cover-img" referrerpolicy="no-referrer">
-                <div class="details-text">
-                    <h1 class="details-title">${title}</h1>
-                    <p class="details-synopsis">${manga.attributes.description.en || 'No synopsis.'}</p>
+        <div style="max-width: 1000px; margin: 6rem auto 0; padding: 2rem;">
+            <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start;">
+                <img src="${coverUrl}" style="width: 250px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" referrerpolicy="no-referrer">
+                <div style="flex: 1; min-width: 300px;">
+                    <h1 style="font-size: 2.5rem; margin-bottom: 1rem; color: var(--text-primary);">${title}</h1>
+                    <p style="color: var(--text-secondary); line-height: 1.6; max-height: 250px; overflow-y: auto;">${manga.attributes.description.en || 'No synopsis.'}</p>
                 </div>
             </div>
-            <h2 style="margin: 2rem 0 1rem; padding: 0 2rem;">Chapters</h2>
+            
+            <h2 style="margin-top: 4rem; margin-bottom: 1.5rem; color: var(--text-primary);">Chapters</h2>
             <div class="chapters-grid">
                 ${chapters.length > 0 ? chapters.map(c => `
-                    <div class="chapter-card" onclick="location.href='reader.html?id=${encodeURIComponent(c.id)}&mangaId=${id}'">
+                    <div class="chapter-card" onclick="location.href='reader.html?chapterHid=${encodeURIComponent(c.id)}&mangaId=${id}'">
                         Chapter ${c.num}
                     </div>
-                `).join('') : '<p style="padding: 2rem;">Searching all libraries... No chapters found yet.</p>'}
+                `).join('') : '<div style="grid-column: 1 / -1; padding: 2rem; background: var(--bg-surface); border-radius: 12px; text-align: center;">No English chapters found in the database.</div>'}
             </div>
         </div>`;
 }
-loadMangaDetails();
+
+document.addEventListener('DOMContentLoaded', loadMangaDetails);
