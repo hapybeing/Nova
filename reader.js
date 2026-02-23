@@ -9,17 +9,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Summoning High-Res Pages...</div>`;
+    box.innerHTML = `<div class="loading-state" style="margin-top:10rem;">Ripping High-Res Pages via Bridge...</div>`;
 
     try {
-        const res = await fetch(`https://api.comick.io/chapter/${chapterHid}`);
+        const res = await fetch(`https://warrior-nova.onrender.com/api/comick/images?hid=${chapterHid}`);
         const data = await res.json();
         
         if (!data.chapter || !data.chapter.images) throw new Error("No images returned from API");
 
         box.innerHTML = `
             <div style="padding:1rem; position:fixed; top:0; left:0; z-index:100; background: rgba(0,0,0,0.5); width: 100%; backdrop-filter: blur(10px);">
-                <button onclick="location.href='details.html?id=${mId}'" style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;">← Back to Chapters</button>
+                <button onclick="location.href='details.html?id=${mId}'" style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: bold;">← Back to Chapters</button>
             </div>
             <div class="reader-pages" style="display:flex; flex-direction:column; align-items:center; background:#000; padding-top:4rem;"></div>
         `;
@@ -38,7 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (e) {
         console.error(e);
-        box.innerHTML = `<div class="loading-state" style="color:red; margin-top:10rem;">Network Breach. Failed to load chapter.</div>`;
+        box.innerHTML = `<div class="loading-state" style="color:red; margin-top:10rem;">Bridge Connection Severed.</div>`;
     }
 });
-
